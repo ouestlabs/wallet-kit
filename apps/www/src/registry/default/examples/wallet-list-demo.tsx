@@ -5,5 +5,9 @@ import { WalletList } from "@/registry/default/ui/wallet/list";
 
 export default function WalletListDemo() {
   const { wallets } = useWallet();
-  return <WalletList wallets={wallets} />;
+  return (
+    <div className="flex w-full flex-col">
+      <WalletList wallets={wallets} />
+    </div>
+  );
 }

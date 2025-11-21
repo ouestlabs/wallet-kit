@@ -33,7 +33,7 @@ function SiteHeader() {
                 aria-hidden
                 className="flex shrink-0 select-none items-center justify-center gap-1 text-muted-foreground"
               >
-                <Icons.walletKit className="pointer-events-none size-4 text-foreground sm:size-5" />
+                <Icons.walletKit className="pointer-events-none size-5 text-foreground" />
                 <p className="-mt-[2.3px] sm:-mt-[3px] text-balance font-medium font-serif text-xl leading-snug sm:text-2xl">
                   {appConfig.name}
                 </p>

@@ -1,14 +1,7 @@
+import { readFileSync } from "node:fs";
 import { notFound } from "next/navigation";
-import { ImageResponse } from "next/og";
-import { appConfig, baseUrl } from "@/lib/config";
-import { loadGoogleFont } from "@/lib/fonts";
+import { generateOGImage } from "@/lib/og";
 import { source } from "@/lib/source";
-
-export const revalidate = false;
-export const size = {
-  width: 1200,
-  height: 630,
-};
 
 export async function GET(
   _req: Request,
@@ -20,74 +13,24 @@ export async function GET(
     notFound();
   }
 
-  const fontData = await loadGoogleFont(
-    "Instrument Serif",
-    `${appConfig.name} ${page.data.title}`
-  );
+  const fontSerif = readFileSync("src/lib/fonts/instrument-serif.ttf");
+  const fontSans = readFileSync("src/lib/fonts/bricolage-grotesque.ttf");
 
-  return new ImageResponse(
-    <div
-      style={{
-        height: "100%",
-        width: "100%",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        position: "relative",
-        overflow: "hidden",
-        backgroundImage: `url(${baseUrl.origin}/bg.png)`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }}
-    >
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: "0.5rem",
-        }}
-      >
-        <p
-          style={{
-            fontSize: "5rem",
-            fontWeight: 600,
-            textAlign: "center",
-            color: "dimgray",
-            fontFamily: "Instrument Serif",
-            margin: 0,
-            lineHeight: "1",
-          }}
-        >
-          {appConfig.name}
-        </p>
-        <p
-          style={{
-            fontSize: "7rem",
-            fontWeight: "bold",
-            color: "white",
-            textAlign: "center",
-            fontFamily: "Instrument Serif",
-            margin: 0,
-            lineHeight: "1",
-          }}
-        >
-          {page.data.title}
-        </p>
-      </div>
-    </div>,
-    {
-      ...size,
-      fonts: [
-        {
-          name: "Instrument Serif",
-          data: fontData,
-          style: "normal",
-        },
-      ],
-    }
-  );
+  return generateOGImage({
+    primaryTextColor: "rgb(240,240,240)",
+    title: page.data.title,
+    description: page.data.description,
+    fonts: [
+      {
+        name: "Instrument Serif",
+        data: fontSerif,
+      },
+      {
+        name: "Bricolage Grotesque",
+        data: fontSans,
+      },
+    ],
+  });
 }
 
 export function generateStaticParams() {
