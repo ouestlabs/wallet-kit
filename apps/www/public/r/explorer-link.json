@@ -1,0 +1,23 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "explorer-link",
+  "type": "registry:component",
+  "dependencies": [
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "@shadcn/button",
+    "@wallet-kit/use-wallet"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/ui/wallet/explorer-link.tsx",
+      "content": "\"use client\";\n\nimport { ExternalLink } from \"lucide-react\";\nimport type * as React from \"react\";\nimport { cn } from \"@/registry/default/lib/utils\";\nimport { Button } from \"@/registry/default/ui/button\";\n\ninterface ExplorerLinkProps extends React.ComponentProps<typeof Button> {\n  url: string;\n  label: string;\n  showIcon?: boolean;\n}\n\nexport function ExplorerLink({\n  url,\n  label = \"View in Explorer\",\n  className,\n  showIcon = true,\n  variant = \"link\",\n  size = \"sm\",\n  ...props\n}: ExplorerLinkProps) {\n  return (\n    <Button\n      asChild\n      className={cn(\"h-auto px-0\", className)}\n      size={size}\n      variant={variant}\n      {...props}\n    >\n      <a href={url} rel=\"noopener noreferrer\" target=\"_blank\">\n        {label}\n        {showIcon && <ExternalLink className=\"h-3 w-3\" />}\n      </a>\n    </Button>\n  );\n}\n",
+      "type": "registry:component",
+      "target": "components/wallet/explorer-link.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

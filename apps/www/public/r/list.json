@@ -1,0 +1,27 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "list",
+  "type": "registry:component",
+  "dependencies": [
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "@shadcn/button",
+    "@shadcn/spinner",
+    "@shadcn/alert",
+    "@shadcn/badge",
+    "@wallet-kit/icon",
+    "@wallet-kit/use-wallet"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/ui/wallet/list.tsx",
+      "content": "import type { UiWallet, UiWalletAccount } from \"@wallet-standard/react\";\nimport { CircleAlertIcon, ExternalLink } from \"lucide-react\";\nimport type React from \"react\";\nimport {\n  useWalletAccount,\n  useWalletConnection,\n} from \"@/registry/default/hooks/use-wallet\";\nimport { cn } from \"@/registry/default/lib/utils\";\nimport { Alert, AlertDescription } from \"@/registry/default/ui/alert\";\nimport { Badge } from \"@/registry/default/ui/badge\";\nimport { Button } from \"@/registry/default/ui/button\";\nimport { Spinner } from \"@/registry/default/ui/spinner\";\nimport { WalletIcon } from \"@/registry/default/ui/wallet/icon\";\n\nfunction NoWalletDetected({ className }: { className?: string }) {\n  return (\n    <div className={cn(\"space-y-3\", className)}>\n      <Alert variant=\"destructive\">\n        <CircleAlertIcon className=\"mt-0.5\" />\n        <AlertDescription>\n          No wallet detected in this browser. Please install a Solana wallet\n          extension.\n        </AlertDescription>\n      </Alert>\n      <Button\n        className=\"w-full\"\n        onClick={() => window.open(\"https://phantom.app/download\", \"_blank\")}\n      >\n        Download Phantom Wallet\n        <ExternalLink />\n      </Button>\n    </div>\n  );\n}\n\ninterface WalletListItemProps extends React.ComponentProps<typeof Button> {\n  select?: (wallet: UiWalletAccount) => Promise<void> | void;\n  wallet: UiWallet;\n}\n\nfunction WalletListItem({\n  wallet,\n  select,\n  className,\n  ...props\n}: WalletListItemProps) {\n  const { connect, isConnecting } = useWalletConnection({ wallet });\n  const { wallet: connectedWallet } = useWalletAccount();\n  const isConnected = connectedWallet?.name === wallet.name;\n\n  return (\n    <Button\n      className={cn(\"h-auto\", className)}\n      disabled={isConnecting || isConnected}\n      onClick={async () => {\n        const accounts = await connect();\n        const account = accounts?.[0];\n        if (account && select) {\n          await select(account);\n        }\n      }}\n      {...props}\n    >\n      <WalletIcon wallet={wallet} />\n      <span className=\"grow text-left\">{wallet.name}</span>\n      {isConnecting && <Spinner />}\n      {isConnected && !isConnecting && (\n        <Badge className=\"ml-2\" variant=\"secondary\">\n          Connected\n        </Badge>\n      )}\n    </Button>\n  );\n}\n\ninterface WalletListProps extends React.ComponentProps<\"div\"> {\n  select?: (account: UiWalletAccount) => Promise<void> | void;\n  wallets: UiWallet[];\n}\n\nfunction WalletList({ select, wallets, ...props }: WalletListProps) {\n  if (wallets.length === 0) {\n    return <NoWalletDetected className={props.className} />;\n  }\n\n  return (\n    <div\n      className={cn(\n        \"flex max-h-[300px] flex-col space-y-2 overflow-y-auto p-2\",\n        props.className\n      )}\n      {...props}\n    >\n      {wallets.map((wallet, index) => (\n        <WalletListItem\n          key={`${wallet.name}-${index}`}\n          select={select}\n          wallet={wallet}\n        />\n      ))}\n    </div>\n  );\n}\n\nexport { WalletList };\n",
+      "type": "registry:component",
+      "target": "components/wallet/list.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

@@ -1,0 +1,31 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "connect",
+  "type": "registry:component",
+  "dependencies": [
+    "lucide-react"
+  ],
+  "registryDependencies": [
+    "@shadcn/button",
+    "@shadcn/dialog",
+    "@shadcn/item",
+    "@shadcn/button-group",
+    "@wallet-kit/provider",
+    "@wallet-kit/list",
+    "@wallet-kit/onboarding",
+    "@wallet-kit/error",
+    "@wallet-kit/icon",
+    "@wallet-kit/ellipsify"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/ui/wallet/connect.tsx",
+      "content": "\"use client\";\n\nimport {\n  AlertCircle,\n  ChevronLeftIcon,\n  InfoIcon,\n  LogOutIcon,\n} from \"lucide-react\";\nimport type React from \"react\";\nimport { useEffect, useState } from \"react\";\nimport {\n  useWallet,\n  useWalletAccount,\n} from \"@/registry/default/hooks/use-wallet\";\nimport { ellipsify } from \"@/registry/default/lib/ellipsify\";\nimport { Button } from \"@/registry/default/ui/button\";\nimport {\n  ButtonGroup,\n  ButtonGroupText,\n} from \"@/registry/default/ui/button-group\";\nimport {\n  Dialog,\n  DialogContent,\n  DialogDescription,\n  DialogHeader,\n  DialogTitle,\n  DialogTrigger,\n} from \"@/registry/default/ui/dialog\";\nimport {\n  Item,\n  ItemActions,\n  ItemContent,\n  ItemDescription,\n  ItemMedia,\n  ItemTitle,\n} from \"@/registry/default/ui/item\";\nimport {\n  NO_ERROR,\n  WalletErrorDialog,\n} from \"@/registry/default/ui/wallet/error\";\nimport { WalletIcon } from \"@/registry/default/ui/wallet/icon\";\nimport { WalletList } from \"@/registry/default/ui/wallet/list\";\nimport { WalletOnboarding } from \"@/registry/default/ui/wallet/onboarding\";\n\nfunction ConnectWallet({\n  className,\n  children,\n  variant = \"default\",\n  ...props\n}: React.ComponentProps<typeof Button>) {\n  const { wallets, disconnect } = useWallet();\n  const { setAccount, account, wallet } = useWalletAccount();\n  const [open, setOpen] = useState(false);\n  const [showInfo, setShowInfo] = useState(false);\n  const [error, setError] = useState<symbol>(NO_ERROR);\n\n  useEffect(() => {\n    if (!open) {\n      setShowInfo(false);\n    }\n  }, [open]);\n\n  if (account) {\n    return (\n      <ButtonGroup className={className}>\n        <ButtonGroupText>\n          <WalletIcon className=\"mr-2 size-4 rounded-sm\" wallet={wallet} />\n          {ellipsify(account.address)}\n        </ButtonGroupText>\n        <Button\n          onClick={() => disconnect()}\n          size=\"icon\"\n          variant={variant}\n          {...props}\n        >\n          <LogOutIcon />\n        </Button>\n      </ButtonGroup>\n    );\n  }\n\n  return (\n    <>\n      <Dialog onOpenChange={setOpen} open={open}>\n        <DialogTrigger asChild>\n          <Button className={className} variant={variant} {...props}>\n            {children || \"Connect Wallet\"}\n          </Button>\n        </DialogTrigger>\n        <DialogContent showCloseButton={false}>\n          <DialogHeader className=\"flex flex-row items-center justify-between\">\n            {!showInfo && (\n              <DialogTitle className=\"\">Connect Wallet</DialogTitle>\n            )}\n            <DialogDescription className=\"sr-only\" />\n            <Button\n              className=\"size-7 rounded-full\"\n              onClick={() => setShowInfo(!showInfo)}\n              size=\"icon\"\n              variant=\"ghost\"\n            >\n              {showInfo ? (\n                <ChevronLeftIcon className=\"text-foreground/50 group-hover:text-foreground\" />\n              ) : (\n                <InfoIcon className=\"text-foreground/50 group-hover:text-foreground\" />\n              )}\n            </Button>\n          </DialogHeader>\n\n          {showInfo ? (\n            <WalletOnboarding onClose={() => setShowInfo(false)} />\n          ) : (\n            <WalletList\n              select={(selectedAccount) => {\n                setAccount(selectedAccount);\n                setOpen(false);\n              }}\n              wallets={wallets}\n            />\n          )}\n        </DialogContent>\n      </Dialog>\n      {error !== NO_ERROR && (\n        <WalletErrorDialog error={error} onClose={() => setError(NO_ERROR)} />\n      )}\n    </>\n  );\n}\ninterface ConnectWalletPromptProps extends React.ComponentProps<typeof Item> {\n  title?: string;\n  description?: string;\n}\nfunction ConnectWalletPrompt({\n  variant = \"outline\",\n  title = \"Wallet not connected\",\n  description = \"Please connect your wallet to continue.\",\n  ...props\n}: ConnectWalletPromptProps) {\n  const { account } = useWalletAccount();\n  if (account) {\n    return null;\n  }\n  return (\n    <Item variant={variant} {...props}>\n      <ItemMedia variant=\"icon\">\n        <AlertCircle className=\"size-4 text-destructive\" />\n      </ItemMedia>\n      <ItemContent>\n        <ItemTitle>{title}</ItemTitle>\n        <ItemDescription className=\"-mt-1 text-xs\">\n          {description}\n        </ItemDescription>\n      </ItemContent>\n      <ItemActions>\n        <ConnectWallet />\n      </ItemActions>\n    </Item>\n  );\n}\n\nexport { ConnectWallet, ConnectWalletPrompt };\n",
+      "type": "registry:component",
+      "target": "components/wallet/connect.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

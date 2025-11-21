@@ -1,0 +1,135 @@
+---
+title: Wallet Icon
+description: Display wallet icons with size variants and fallback support.
+component: true
+links:
+  doc:
+    - https://ui.shadcn.com/docs/components/avatar
+---
+
+<Preview name="wallet-icon-demo" />
+
+## Installation
+
+<CodeTabs>
+  <TabsList>
+    <TabsTrigger value="cli">CLI</TabsTrigger>
+    <TabsTrigger value="manual">Manual</TabsTrigger>
+  </TabsList>
+  <TabsContent value="cli">
+    ```bash
+    npx shadcn@latest add @wallet-kit/icon
+    ```
+  </TabsContent>
+  <TabsContent value="manual">
+    <Steps>
+      <Step>Install runtime dependencies:</Step>
+
+      ```bash
+      npm install @wallet-standard/react class-variance-authority
+      ```
+
+      <Step>Install required shadcn/ui primitives:</Step>
+
+      ```bash
+      npx shadcn@latest add avatar
+      ```
+
+      <Step>Copy the component code:</Step>
+
+      <Source name="icon" title="components/wallet/icon.tsx" />
+    </Steps>
+  </TabsContent>
+</CodeTabs>
+
+## Usage
+
+```tsx
+import { WalletIcon } from "@/components/wallet/icon";
+import { useWalletAccount } from "@/hooks/use-wallet";
+
+export default function Demo() {
+  const { wallet } = useWalletAccount();
+
+  return <WalletIcon wallet={wallet} />;
+}
+```
+
+## API Reference
+
+### WalletIcon
+
+Displays a wallet's icon using an `Avatar` component. Falls back to the first letter of the wallet name if no icon is available.
+
+#### Props
+
+| Prop       | Type                                  | Default   | Description                                                                 |
+| ---------- | ------------------------------------- | --------- | --------------------------------------------------------------------------- |
+| `wallet`   | `Pick<UiWallet, "icon" \| "name">`    | -         | The wallet object containing `icon` (optional) and `name` (optional).       |
+| `size`     | `"sm" \| "default" \| "lg" \| "xl" \| "2xl"` | `"default"` | The size variant of the icon.                                               |
+| `className` | `string`                              | -         | Additional CSS classes.                                                    |
+
+Inherits all props from shadcn/ui `Avatar`.
+
+#### Size Variants
+
+- **sm**: `size-6` (24px)
+- **default**: `size-8` (32px)
+- **lg**: `size-10` (40px)
+- **xl**: `size-12` (48px)
+- **2xl**: `size-16` (64px)
+
+#### Behavior
+
+- **With Icon**: Displays the wallet's icon image
+- **Without Icon**: Falls back to the first letter of the wallet name (uppercase)
+- **No Wallet**: Renders `null` if no wallet is provided
+
+## Examples
+
+### Basic Usage
+
+```tsx
+import { WalletIcon } from "@/components/wallet/icon";
+import { useWalletAccount } from "@/hooks/use-wallet";
+
+export default function WalletDisplay() {
+  const { wallet } = useWalletAccount();
+
+  return (
+    <div className="flex items-center gap-2">
+      <WalletIcon wallet={wallet} />
+      <span>{wallet?.name}</span>
+    </div>
+  );
+}
+```
+
+### Size Variants
+
+```tsx
+import { WalletIcon } from "@/components/wallet/icon";
+import { useWalletAccount } from "@/hooks/use-wallet";
+
+export default function SizeDemo() {
+  const { wallet } = useWalletAccount();
+
+  return (
+    <div className="flex items-center gap-4">
+      <WalletIcon size="sm" wallet={wallet} />
+      <WalletIcon size="default" wallet={wallet} />
+      <WalletIcon size="lg" wallet={wallet} />
+      <WalletIcon size="xl" wallet={wallet} />
+      <WalletIcon size="2xl" wallet={wallet} />
+    </div>
+  );
+}
+```
+
+<Callout>
+- The component uses shadcn/ui's `Avatar` component internally
+- Icons are displayed with `rounded-sm` styling
+- The fallback letter is always uppercase
+- The component gracefully handles missing wallet data
+- Size variants use `class-variance-authority` for consistent styling
+</Callout>

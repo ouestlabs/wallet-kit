@@ -1,0 +1,118 @@
+---
+title: Wallet Onboarding
+description: An onboarding flow for new users explaining how to use wallets.
+component: true
+links:
+  doc:
+    - https://ui.shadcn.com/docs/components/button
+---
+
+<Preview name="wallet-onboarding-demo" />
+
+## Installation
+
+<CodeTabs>
+  <TabsList>
+    <TabsTrigger value="cli">CLI</TabsTrigger>
+    <TabsTrigger value="manual">Manual</TabsTrigger>
+  </TabsList>
+  <TabsContent value="cli">
+    ```bash
+    npx shadcn@latest add @wallet-kit/onboarding
+    ```
+  </TabsContent>
+  <TabsContent value="manual">
+    <Steps>
+      <Step>Install dependencies:</Step>
+      ```bash
+      npm install motion
+      ```
+      <Step>Install required shadcn/ui primitives:</Step>
+      ```bash
+      npx shadcn@latest add button
+      ```
+      <Step>Copy the component code:</Step>
+      <Source name="onboarding" title="components/wallet/onboarding.tsx" />
+    </Steps>
+  </TabsContent>
+</CodeTabs>
+
+## Usage
+
+```tsx
+import { WalletOnboarding } from "@/components/wallet/onboarding"
+
+export default function Demo() {
+  return <WalletOnboarding onClose={() => {}} />
+}
+```
+
+## API Reference
+
+### WalletOnboarding
+
+An animated onboarding component that explains how to use crypto wallets to new users.
+
+#### Props
+
+| Prop      | Type         | Default | Description                                                                                         |
+| --------- | ------------ | ------- | --------------------------------------------------------------------------------------------------- |
+| `onClose` | `() => void` | -       | **Required.** Callback fired when the user wants to close the onboarding (e.g., clicking "Got it"). |
+
+#### Behavior
+
+- Displays step-by-step instructions about wallets
+- Uses animations (via `motion`) for smooth transitions
+- Provides a "Got it" button to dismiss
+- Designed to educate new users about crypto wallets
+
+## Examples
+
+### In a Dialog
+
+```tsx
+import { WalletOnboarding } from "@/components/wallet/onboarding"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { useState } from "react"
+
+export default function OnboardingDialog() {
+  const [open, setOpen] = useState(true)
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>
+        <WalletOnboarding onClose={() => setOpen(false)} />
+      </DialogContent>
+    </Dialog>
+  )
+}
+```
+
+### Toggle Onboarding
+
+```tsx
+import { WalletOnboarding } from "@/components/wallet/onboarding"
+import { useState } from "react"
+
+export default function Demo() {
+  const [showOnboarding, setShowOnboarding] = useState(false)
+
+  return (
+    <>
+      <button onClick={() => setShowOnboarding(true)}>
+        Learn about wallets
+      </button>
+      {showOnboarding && (
+        <WalletOnboarding onClose={() => setShowOnboarding(false)} />
+      )}
+    </>
+  )
+}
+```
+
+<Callout>
+- The component uses `motion` for animations
+- Typically used inside dialogs or modals
+- Provides educational content for users new to crypto wallets
+- The `onClose` callback should handle hiding the component
+</Callout>

@@ -1,0 +1,168 @@
+---
+title: Connect Wallet
+description: A button and dialog to connect a wallet, with an optional prompt component.
+component: true
+links:
+  doc:
+    - https://ui.shadcn.com/docs/components/button
+    - https://ui.shadcn.com/docs/components/dialog
+    - https://ui.shadcn.com/docs/components/button-group
+---
+
+<Preview name="connect-wallet-demo" />
+
+## Installation
+
+<CodeTabs>
+  <TabsList>
+    <TabsTrigger value="cli">CLI</TabsTrigger>
+    <TabsTrigger value="manual">Manual</TabsTrigger>
+  </TabsList>
+  <TabsContent value="cli">
+    ```bash
+    npx shadcn@latest add @wallet-kit/connect
+    ```
+  </TabsContent>
+  <TabsContent value="manual">
+    <Steps>
+      <Step>Install runtime dependencies:</Step>
+      ```bash
+      npm install lucide-react
+      ```
+      <Step>Install required shadcn/ui primitives:</Step>
+      ```bash
+      npx shadcn@latest add button dialog button-group
+      ```
+      <Step>Install required wallet components:</Step>
+      ```bash
+      npx shadcn@latest add @wallet-kit/provider @wallet-kit/list @wallet-kit/onboarding @wallet-kit/error @wallet-kit/icon
+      ```
+      <Step>Copy utilities:</Step>
+      <Source name="ellipsify" title="lib/ellipsify.ts" />
+      <Step>Copy the component code:</Step>
+      <Source name="connect" title="components/wallet/connect.tsx" />
+    </Steps>
+  </TabsContent>
+</CodeTabs>
+
+## Usage
+
+### ConnectWallet
+
+The main button component that opens a dialog to select a wallet. When a wallet is connected, it displays the wallet icon and ellipsified address with a disconnect button.
+
+```tsx
+import { ConnectWallet } from "@/components/wallet/connect"
+
+export default function Demo() {
+  return <ConnectWallet />
+}
+```
+
+### ConnectWalletPrompt
+
+A prompt component that displays a warning message when no wallet is connected. It automatically hides when a wallet is connected.
+
+<Preview name="connect-wallet-prompt-demo" />
+
+```tsx
+import { ConnectWalletPrompt } from "@/components/wallet/connect"
+
+export default function Demo() {
+  return (
+    <ConnectWalletPrompt />
+  )
+}
+```
+
+## API Reference
+
+### ConnectWallet
+
+A button that opens a dialog to select a wallet. If a wallet is already connected, it displays the connected wallet's address and a disconnect button.
+
+#### Props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `variant` | `string` | `"default"` | The button variant style (default, outline, ghost, etc.). |
+| `className` | `string` | - | Additional CSS classes. |
+| `children` | `ReactNode` | `"Connect Wallet"` | Custom button text. |
+
+Inherits all props from shadcn/ui `Button`.
+
+#### Behavior
+
+- **Not Connected**: Shows a button that opens a dialog with the list of available wallets
+- **Connected**: Shows a `ButtonGroup` with the wallet icon, ellipsified address, and a disconnect button
+- **Dialog**: Contains a toggle to show wallet onboarding information
+
+### ConnectWalletPrompt
+
+A prompt component that displays when no wallet is connected. Useful for gating content that requires wallet connection.
+
+#### Props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `variant` | `string` | `"outline"` | The Item variant style. |
+| `className` | `string` | - | Additional CSS classes. |
+
+Inherits all props from shadcn/ui `Item`.
+
+#### Behavior
+
+- **Not Connected**: Displays an alert-style item with a warning icon, message, and a `ConnectWallet` button
+- **Connected**: Renders `null` (automatically hidden)
+
+## Examples
+
+### Basic Connection
+
+```tsx
+import { ConnectWallet } from "@/components/wallet/connect"
+
+export default function Header() {
+  return (
+    <header>
+      <ConnectWallet />
+    </header>
+  )
+}
+```
+
+### With Custom Text
+
+```tsx
+import { ConnectWallet } from "@/components/wallet/connect"
+
+export default function Demo() {
+  return (
+    <ConnectWallet variant="outline">
+      Connect Your Wallet
+    </ConnectWallet>
+  )
+}
+```
+
+### Using the Prompt
+
+```tsx
+import { ConnectWalletPrompt } from "@/components/wallet/connect"
+
+export default function ProtectedContent() {
+  return (
+    <div>
+      <ConnectWalletPrompt />
+      {/* Your protected content here */}
+    </div>
+  )
+}
+```
+
+<Callout>
+- The component automatically handles wallet connection state
+- When connected, the disconnect button uses the same variant as the main button
+- The dialog includes an info button that toggles wallet onboarding information
+- The component uses `WalletList` internally to display available wallets
+</Callout>

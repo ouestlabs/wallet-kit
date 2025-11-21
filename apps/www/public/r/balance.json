@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "balance",
+  "type": "registry:component",
+  "dependencies": [],
+  "registryDependencies": [
+    "@shadcn/skeleton",
+    "@wallet-kit/use-wallet"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/ui/wallet/balance.tsx",
+      "content": "\"use client\";\n\nimport { useWalletAccount } from \"@/registry/default/hooks/use-wallet\";\nimport { cn } from \"@/registry/default/lib/utils\";\nimport { Skeleton } from \"@/registry/default/ui/skeleton\";\n\ninterface WalletBalanceProps extends React.ComponentProps<\"div\"> {\n  balance?: bigint | null;\n  format?: (balance: bigint) => string;\n  showSymbol?: boolean;\n  symbol?: string;\n  decimals?: number;\n  loading?: boolean;\n}\n\nfunction WalletBalance({\n  className,\n  balance,\n  format,\n  showSymbol = true,\n  symbol = \"SOL\",\n  decimals = 9,\n  loading = false,\n  ...props\n}: WalletBalanceProps) {\n  const { account } = useWalletAccount();\n\n  if (!account) {\n    return (\n      <div className={cn(\"flex items-center gap-1\", className)} {...props}>\n        <Skeleton className=\"h-5 w-20\" />\n      </div>\n    );\n  }\n\n  if (loading && balance === null) {\n    return (\n      <div className={cn(\"flex items-center gap-1\", className)} {...props}>\n        <Skeleton className=\"h-5 w-20\" />\n      </div>\n    );\n  }\n\n  const currentBalance = balance ?? BigInt(0);\n  const formattedBalance = format\n    ? format(currentBalance)\n    : (Number(currentBalance) / 10 ** decimals).toFixed(4);\n\n  return (\n    <div className={cn(\"flex items-center gap-1\", className)} {...props}>\n      <span className=\"font-medium\">{formattedBalance}</span>\n      {showSymbol && (\n        <span className=\"text-muted-foreground text-sm\">{symbol}</span>\n      )}\n    </div>\n  );\n}\n\nexport { WalletBalance };\n",
+      "type": "registry:component",
+      "target": "components/wallet/balance.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "icon",
+  "type": "registry:component",
+  "dependencies": [
+    "@wallet-standard/react",
+    "class-variance-authority"
+  ],
+  "registryDependencies": [
+    "@shadcn/avatar"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/ui/wallet/icon.tsx",
+      "content": "\"use client\";\n\nimport type { UiWallet } from \"@wallet-standard/react\";\nimport { cva, type VariantProps } from \"class-variance-authority\";\nimport { cn } from \"@/registry/default/lib/utils\";\nimport {\n  Avatar,\n  AvatarFallback,\n  AvatarImage,\n} from \"@/registry/default/ui/avatar\";\n\nconst walletIconVariants = cva(\n  \"inline-flex shrink-0 items-center justify-center overflow-hidden rounded-sm\",\n  {\n    variants: {\n      size: {\n        default: \"size-8\",\n        sm: \"size-6\",\n        lg: \"size-10\",\n        xl: \"size-12\",\n        \"2xl\": \"size-16\",\n      },\n    },\n    defaultVariants: {\n      size: \"default\",\n    },\n  }\n);\n\ninterface WalletIconProps\n  extends React.ComponentProps<typeof Avatar>,\n    VariantProps<typeof walletIconVariants> {\n  wallet?: Pick<UiWallet, \"icon\" | \"name\">;\n}\n\nfunction WalletIcon({ wallet, size, className, ...props }: WalletIconProps) {\n  return (\n    <Avatar className={cn(walletIconVariants({ size }), className)} {...props}>\n      {wallet?.icon && (\n        <AvatarImage\n          alt={wallet.name || \"Wallet\"}\n          className=\"rounded-sm\"\n          src={wallet.icon}\n        />\n      )}\n      <AvatarFallback>\n        {(wallet?.name?.[0] || \"W\").toUpperCase()}\n      </AvatarFallback>\n    </Avatar>\n  );\n}\n\nexport { WalletIcon, walletIconVariants };\n",
+      "type": "registry:component",
+      "target": "components/wallet/icon.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

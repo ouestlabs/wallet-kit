@@ -1,0 +1,13 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "ellipsify",
+  "type": "registry:lib",
+  "files": [
+    {
+      "path": "src/registry/default/lib/ellipsify.ts",
+      "content": "export function ellipsify(str = \"\", len = 4, delimiter = \"..\") {\n  const strLen = str.length;\n  const limit = len * 2 + delimiter.length;\n  return strLen >= limit\n    ? str.substring(0, len) + delimiter + str.substring(strLen - len, strLen)\n    : str;\n}\n",
+      "type": "registry:lib",
+      "target": "lib/ellipsify.ts"
+    }
+  ]
+}

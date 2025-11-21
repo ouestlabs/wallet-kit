@@ -1,0 +1,19 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "solana",
+  "type": "registry:lib",
+  "dependencies": [
+    "gill"
+  ],
+  "registryDependencies": [
+    "@wallet-kit/network"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/lib/chains/solana/index.ts",
+      "content": "import {\n  type ClusterUrl,\n  LAMPORTS_PER_SOL,\n  type SolanaClusterMoniker,\n} from \"gill\";\nimport {\n  defineNetwork,\n  type Network,\n} from \"@/registry/default/lib/chains/network\";\n\ntype SolanaNetworkId = `solana:${string}`;\n\ninterface SolanaNetwork extends Network {\n  id: SolanaNetworkId;\n  url: ClusterUrl;\n}\n\nconst createSolanaMainnet = defineNetwork<SolanaNetwork>({\n  id: \"solana:mainnet\",\n  label: \"Mainnet\",\n  url: \"mainnet\",\n});\n\nconst createSolanaDevnet = defineNetwork<SolanaNetwork>({\n  id: \"solana:devnet\",\n  label: \"Devnet\",\n  url: \"devnet\",\n});\n\nconst createSolanaTestnet = defineNetwork<SolanaNetwork>({\n  id: \"solana:testnet\",\n  label: \"Testnet\",\n  url: \"testnet\",\n});\n\nconst createSolanaLocalnet = defineNetwork<SolanaNetwork>({\n  id: \"solana:localnet\",\n  label: \"Localnet\",\n  url: \"localnet\",\n});\n\ntype FormatSolArgs = {\n  balance: bigint;\n  locale?: Intl.LocalesArgument;\n  options?: Intl.NumberFormatOptions;\n};\n\nfunction formatSol({\n  balance,\n  locale = \"en-US\",\n  options = {\n    style: \"decimal\",\n    minimumFractionDigits: 2,\n    maximumFractionDigits: 5,\n  },\n}: FormatSolArgs) {\n  if (!balance) {\n    return \"0\";\n  }\n  return Intl.NumberFormat(locale, {\n    ...options,\n  }).format(Number(balance) / LAMPORTS_PER_SOL);\n}\nfunction getSolanaClusterMoniker(\n  networkId: SolanaNetworkId\n): SolanaClusterMoniker {\n  if (!networkId.startsWith(\"solana:\")) {\n    throw new Error(`Invalid network id: ${networkId}`);\n  }\n  return networkId.replace(\"solana:\", \"\") as SolanaClusterMoniker;\n}\n\nexport {\n  formatSol,\n  createSolanaDevnet,\n  createSolanaMainnet,\n  createSolanaTestnet,\n  createSolanaLocalnet,\n  getSolanaClusterMoniker,\n  type SolanaNetwork,\n  type SolanaNetworkId,\n};\n",
+      "type": "registry:lib",
+      "target": "lib/chains/solana/index.ts"
+    }
+  ]
+}

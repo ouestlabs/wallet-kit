@@ -1,0 +1,17 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "storage",
+  "type": "registry:lib",
+  "dependencies": [
+    "@nanostores/react",
+    "nanostores"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/lib/chains/storage.ts",
+      "content": "import { persistentAtom } from \"@nanostores/persistent\";\nimport { computed, type ReadableAtom, type WritableAtom } from \"nanostores\";\nimport type { Network } from \"@/registry/default/lib/chains/network\";\n\ntype StorageAccount = Storage<string | undefined>;\ntype StorageNetwork = Storage<Network[\"id\"]>;\n\nclass Storage<T> {\n  private readonly atom: WritableAtom<T | undefined>;\n  readonly key: string;\n  readonly initial: T | undefined;\n\n  constructor(key: string, initial?: T) {\n    this.key = key;\n    this.initial = initial;\n    this.atom = persistentAtom<T | undefined>(key, initial, {\n      encode: JSON.stringify,\n      decode: JSON.parse,\n    });\n  }\n\n  get() {\n    return this.atom.get();\n  }\n\n  set(value: T | undefined) {\n    this.atom.set(value);\n  }\n\n  get value(): ReadableAtom<T | undefined> {\n    return computed(this.atom, (value) => value);\n  }\n}\n\nfunction createStorage<T>(key: string, defaultValue?: T): Storage<T> {\n  return new Storage<T>(key, defaultValue);\n}\n\nfunction createStorageAccount(key = \"wallet-kit:account\") {\n  return createStorage<string | undefined>(key);\n}\n\nfunction createStorageNetwork(key = \"wallet-kit:network\") {\n  return createStorage<Network[\"id\"]>(key);\n}\n\nexport {\n  Storage,\n  type StorageAccount,\n  type StorageNetwork,\n  createStorageAccount,\n  createStorageNetwork,\n};\n",
+      "type": "registry:lib",
+      "target": "lib/chains/storage.ts"
+    }
+  ]
+}

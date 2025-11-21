@@ -1,0 +1,23 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "network-select-demo",
+  "type": "registry:block",
+  "description": "Network selection control with badge and dropdown",
+  "dependencies": [],
+  "registryDependencies": [
+    "@wallet-kit/provider",
+    "@wallet-kit/network-control",
+    "@wallet-kit/solana"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/examples/network-select-demo.tsx",
+      "content": "\"use client\";\n\nimport { Item, ItemActions, ItemContent } from \"@/registry/default/ui/item\";\nimport {\n  NetworkBadge,\n  NetworkSelect,\n} from \"@/registry/default/ui/wallet/network\";\n\nexport default function NetworkSelectDemo() {\n  return (\n    <Item variant=\"outline\">\n      <ItemContent>\n        <NetworkBadge />\n      </ItemContent>\n      <ItemActions>\n        <NetworkSelect />\n      </ItemActions>\n    </Item>\n  );\n}\n",
+      "type": "registry:block",
+      "target": "components/wallet/particles/network-select-demo.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

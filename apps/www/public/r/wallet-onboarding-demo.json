@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "wallet-onboarding-demo",
+  "type": "registry:block",
+  "description": "Interactive wallet onboarding flow with step-by-step guide",
+  "dependencies": [],
+  "registryDependencies": [
+    "@wallet-kit/onboarding"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/examples/wallet-onboarding-demo.tsx",
+      "content": "\"use client\";\n\nimport { toast } from \"sonner\";\nimport { Button } from \"@/registry/default/ui/button\";\nimport {\n  Dialog,\n  DialogContent,\n  DialogDescription,\n  DialogHeader,\n  DialogTitle,\n  DialogTrigger,\n} from \"@/registry/default/ui/dialog\";\nimport { WalletOnboarding } from \"@/registry/default/ui/wallet/onboarding\";\n\nexport default function WalletOnboardingDemo() {\n  return (\n    <div className=\"flex items-center justify-center p-4\">\n      <Dialog>\n        <DialogTrigger asChild>\n          <Button>Show Onboarding</Button>\n        </DialogTrigger>\n        <DialogContent>\n          <DialogHeader className=\"sr-only\">\n            <DialogTitle />\n            <DialogDescription />\n          </DialogHeader>\n          <WalletOnboarding\n            onClose={() => {\n              toast.info(\"Learned more about wallets\");\n            }}\n          />\n        </DialogContent>\n      </Dialog>\n    </div>\n  );\n}\n",
+      "type": "registry:block",
+      "target": "components/wallet/particles/wallet-onboarding-demo.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "connect-wallet-demo",
+  "type": "registry:block",
+  "description": "A simple connect wallet button example",
+  "dependencies": [],
+  "registryDependencies": [
+    "@wallet-kit/provider",
+    "@wallet-kit/connect",
+    "@wallet-kit/solana"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/examples/connect-wallet-demo.tsx",
+      "content": "\"use client\";\n\nimport { ConnectWallet } from \"@/registry/default/ui/wallet/connect\";\n\nexport default function ConnectWalletDemo() {\n  return (\n    <div className=\"flex items-center justify-center\">\n      <ConnectWallet />\n    </div>\n  );\n}\n",
+      "type": "registry:block",
+      "target": "components/wallet/particles/connect-wallet-demo.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

@@ -1,0 +1,23 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "connect-wallet-prompt-demo",
+  "type": "registry:block",
+  "description": "A prompt component that displays when no wallet is connected",
+  "dependencies": [],
+  "registryDependencies": [
+    "@wallet-kit/provider",
+    "@wallet-kit/connect",
+    "@wallet-kit/solana"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/examples/connect-wallet-prompt-demo.tsx",
+      "content": "\"use client\";\n\nimport { ConnectWalletPrompt } from \"@/registry/default/ui/wallet/connect\";\n\nexport default function ConnectWalletPromptDemo() {\n  return (\n    <div className=\"flex items-center justify-center\">\n      <ConnectWalletPrompt className=\"w-full\" />\n    </div>\n  );\n}\n",
+      "type": "registry:block",
+      "target": "components/wallet/particles/connect-wallet-prompt-demo.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "context",
+  "type": "registry:lib",
+  "files": [
+    {
+      "path": "src/registry/default/lib/chains/context.ts",
+      "content": "\"use client\";\n\nimport type { UiWallet, UiWalletAccount } from \"@wallet-standard/react\";\nimport { createContext } from \"react\";\nimport type { Network } from \"@/registry/default/lib/chains/network\";\n\ntype WalletNetworkContextValue = {\n  network: Network;\n  networks: Network[];\n  setNetwork(networkId: Network[\"id\"]): void;\n};\n\nconst WalletNetworkContext = createContext<WalletNetworkContextValue>(\n  {} as WalletNetworkContextValue\n);\n\ntype WalletAccountInfo = {\n  account: UiWalletAccount;\n  accountKeys: string[];\n  network: Network;\n  wallet: UiWallet | undefined;\n};\n\ninterface WalletAccountState extends Omit<WalletAccountInfo, \"account\"> {\n  account: UiWalletAccount | undefined;\n  setAccount: React.Dispatch<React.SetStateAction<UiWalletAccount | undefined>>;\n}\n\nconst WalletAccountContext = createContext<WalletAccountState>(\n  {} as WalletAccountState\n);\n\ntype WalletUiContextValue<TClient = unknown> = {\n  account?: UiWalletAccount;\n  accountKeys: string[];\n  client?: TClient;\n  connect: (wallet: UiWalletAccount) => void;\n  connected: boolean;\n  copy: () => void;\n  disconnect: () => void;\n  isModalOpen: boolean;\n  network: Network;\n  setIsModalOpen: (open: boolean) => void;\n  wallet?: UiWallet;\n  wallets: UiWallet[];\n};\n\ntype WalletUiContextProviderProps<TClient = unknown> = {\n  children: React.ReactNode;\n  client?: TClient;\n};\n\nconst WalletUiContext = createContext<WalletUiContextValue<unknown>>(\n  {} as WalletUiContextValue<unknown>\n);\n\nexport {\n  WalletNetworkContext,\n  WalletAccountContext,\n  WalletUiContext,\n  type WalletNetworkContextValue,\n  type WalletAccountState,\n  type WalletUiContextValue,\n  type WalletUiContextProviderProps,\n};\n",
+      "type": "registry:lib",
+      "target": "lib/chains/context.ts"
+    }
+  ]
+}

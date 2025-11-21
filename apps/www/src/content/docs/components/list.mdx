@@ -1,0 +1,140 @@
+---
+title: Wallet List
+description: A list of available wallets for connection.
+component: true
+links:
+  doc:
+    - https://ui.shadcn.com/docs/components/button
+    - https://ui.shadcn.com/docs/components/alert
+    - https://ui.shadcn.com/docs/components/badge
+    - https://ui.shadcn.com/docs/components/spinner
+---
+
+<Preview name="wallet-list-demo" />
+
+## Installation
+
+<CodeTabs>
+  <TabsList>
+    <TabsTrigger value="cli">CLI</TabsTrigger>
+    <TabsTrigger value="manual">Manual</TabsTrigger>
+  </TabsList>
+  <TabsContent value="cli">
+    ```bash
+    npx shadcn@latest add @wallet-kit/list
+    ```
+  </TabsContent>
+  <TabsContent value="manual">
+    <Steps>
+      <Step>Install runtime dependencies:</Step>
+      ```bash
+      npm install lucide-react
+      ```
+      <Step>Install required shadcn/ui primitives:</Step>
+      ```bash
+      npx shadcn@latest add button alert badge spinner
+      ```
+      <Step>Install required wallet components:</Step>
+      ```bash
+      npx shadcn@latest add @wallet-kit/provider @wallet-kit/icon @wallet-kit/use-wallet
+      ```
+      <Step>Copy the component code:</Step>
+      <Source name="list" title="components/wallet/list.tsx" />
+    </Steps>
+  </TabsContent>
+</CodeTabs>
+
+## Usage
+
+```tsx
+import { WalletList } from "@/components/wallet/list"
+import { useWallet } from "@/hooks/use-wallet"
+
+export default function Demo() {
+  const { wallets } = useWallet()
+  
+  return <WalletList wallets={wallets} />
+}
+```
+
+## API Reference
+
+### WalletList
+
+A scrollable list component that displays available wallets. Shows a "Connected" badge for the currently connected wallet and a spinner during connection.
+
+#### Props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `wallets` | `UiWallet[]` | - | **Required.** Array of available wallets to display. |
+| `select` | `(account: UiWalletAccount) => Promise<void> \| void` | - | Callback fired when a wallet is selected and connected. Receives the connected account. |
+| `className` | `string` | - | Additional CSS classes. |
+
+Inherits all props from `div`.
+
+#### Behavior
+
+- **Empty List**: Displays `NoWalletDetected` component with a message and link to download Phantom Wallet
+- **With Wallets**: Renders a scrollable list (max height 300px) of wallet buttons
+- **Connected Wallet**: Shows a "Connected" badge and disables the button
+- **Connecting**: Shows a spinner while connection is in progress
+
+### NoWalletDetected
+
+An internal component displayed when no wallets are detected. Shows an alert and a button to download Phantom Wallet.
+
+## Examples
+
+### Basic List
+
+```tsx
+import { WalletList } from "@/components/wallet/list"
+import { useWallet } from "@/hooks/use-wallet"
+
+export default function WalletSelector() {
+  const { wallets } = useWallet()
+  
+  return (
+    <WalletList 
+      wallets={wallets}
+      select={(account) => {
+        console.log("Connected:", account.address)
+      }}
+    />
+  )
+}
+```
+
+### In a Dialog
+
+```tsx
+import { WalletList } from "@/components/wallet/list"
+import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { useWallet } from "@/hooks/use-wallet"
+
+export default function WalletDialog() {
+  const { wallets } = useWallet()
+  const [open, setOpen] = useState(false)
+  
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogContent>
+        <WalletList 
+          wallets={wallets}
+          select={(account) => {
+            setOpen(false)
+          }}
+        />
+      </DialogContent>
+    </Dialog>
+  )
+}
+```
+
+<Callout>
+- The component automatically handles wallet connection state
+- Connected wallets are visually distinguished with a badge
+- The list is scrollable with a maximum height of 300px
+- Each wallet button shows the wallet icon, name, and connection status
+</Callout>

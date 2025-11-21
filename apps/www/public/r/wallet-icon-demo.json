@@ -1,0 +1,24 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "wallet-icon-demo",
+  "type": "registry:block",
+  "description": "Wallet icon component with different size variants",
+  "dependencies": [],
+  "registryDependencies": [
+    "@wallet-kit/provider",
+    "@wallet-kit/icon",
+    "@wallet-kit/solana",
+    "@wallet-kit/use-wallet"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/examples/wallet-icon-demo.tsx",
+      "content": "\"use client\";\n\nimport { useWalletAccount } from \"@/registry/default/hooks/use-wallet\";\nimport { WalletIcon } from \"@/registry/default/ui/wallet/icon\";\n\nexport default function WalletIconDemo() {\n  const { wallet } = useWalletAccount();\n\n  return (\n    <div className=\"flex items-center justify-center gap-3\">\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"sm\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size sm</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"default\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size default</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"lg\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size lg</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"xl\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size xl</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"2xl\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size 2xl</span>\n      </div>\n    </div>\n  );\n}\n",
+      "type": "registry:block",
+      "target": "components/wallet/particles/wallet-icon-demo.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

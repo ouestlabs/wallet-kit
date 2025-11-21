@@ -1,0 +1,24 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "wallet-balance-demo",
+  "type": "registry:block",
+  "description": "Display wallet balance with loading states and formatting",
+  "dependencies": [],
+  "registryDependencies": [
+    "@wallet-kit/provider",
+    "@wallet-kit/balance",
+    "@wallet-kit/solana",
+    "@wallet-kit/use-wallet"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/examples/wallet-balance-demo.tsx",
+      "content": "\"use client\";\n\nimport { useWalletAccount } from \"@/registry/default/hooks/use-wallet\";\nimport { formatSol } from \"@/registry/default/lib/chains/solana\";\nimport { useSolanaBalance } from \"@/registry/default/lib/chains/solana/adapter\";\nimport { WalletBalance } from \"@/registry/default/ui/wallet/balance\";\n\nexport default function WalletBalanceDemo() {\n  const { account } = useWalletAccount();\n  const { balance, isLoading, isError, error } = useSolanaBalance();\n\n  return (\n    <div className=\"flex flex-col items-center gap-4 p-4\">\n      <div className=\"text-center\">\n        <p className=\"mb-2 text-muted-foreground text-sm\">\n          {account ? \"Connected Wallet Balance\" : \"No wallet connected\"}\n        </p>\n        {isError && error && (\n          <p className=\"mb-2 text-destructive text-xs\">\n            Error: {error.message}\n          </p>\n        )}\n        <WalletBalance\n          balance={balance ?? null}\n          format={(balanceValue) => formatSol({ balance: balanceValue })}\n          loading={isLoading}\n        />\n      </div>\n    </div>\n  );\n}\n",
+      "type": "registry:block",
+      "target": "components/wallet/particles/wallet-balance-demo.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

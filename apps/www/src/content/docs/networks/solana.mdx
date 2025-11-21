@@ -1,0 +1,631 @@
+---
+title: Solana
+description: Solana network integration with network definitions and utilities.
+links:
+  doc:
+    - https://www.gillsdk.com/docs
+    - https://www.gillsdk.com/docs/react
+    - https://tanstack.com/query/latest
+---
+
+The Solana integration provides network definitions and utilities for working with Solana blockchains.
+
+## Overview
+
+This module provides:
+
+- Network factory functions for Solana networks (mainnet, devnet, testnet, localnet)
+- SOL amount formatting utility (`formatSol`)
+- Type-safe network definitions
+- Solana client integration via `SolanaWalletProvider` plugin
+
+## Installation
+
+<CodeTabs>
+  <TabsList>
+    <TabsTrigger value="cli">CLI</TabsTrigger>
+    <TabsTrigger value="manual">Manual</TabsTrigger>
+  </TabsList>
+  <TabsContent value="cli">
+    ```bash
+    npx shadcn@latest add @wallet-kit/solana
+    ```
+  </TabsContent>
+  <TabsContent value="manual">
+    <Steps>
+      <Step>Install dependencies:</Step>
+      ```bash
+      npm install gill @gillsdk/react @tanstack/react-query
+      ```
+      <Step>Install required wallet libs:</Step>
+      ```bash
+      npx shadcn@latest add @wallet-kit/network @wallet-kit/solana-adapter
+      ```
+      <Step>Copy the Solana integration code:</Step>
+      <Source name="solana" title="lib/chains/solana/index.ts" />
+      <Source name="solana-adapter" title="lib/chains/solana/adapter.tsx" />
+    </Steps>
+  </TabsContent>
+</CodeTabs>
+
+<Callout>
+**Note on `@tanstack/react-query`**: This package is required for the Solana adapter to work. However, `SolanaWalletProvider` handles all the configuration automatically. You only need to wrap your app with `QueryClientProvider` - no additional setup is needed unless you want custom query options.
+</Callout>
+
+## Network Definitions
+
+### createSolanaMainnet
+
+Creates a Solana mainnet network definition.
+
+```tsx
+import { createSolanaMainnet } from "@/lib/chains/solana"
+
+const mainnet = createSolanaMainnet()
+// { id: "solana:mainnet", label: "Mainnet", url: "mainnet" }
+```
+
+### createSolanaDevnet
+
+Creates a Solana devnet network definition.
+
+```tsx
+import { createSolanaDevnet } from "@/lib/chains/solana"
+
+const devnet = createSolanaDevnet()
+// { id: "solana:devnet", label: "Devnet", url: "devnet" }
+```
+
+### createSolanaTestnet
+
+Creates a Solana testnet network definition.
+
+```tsx
+import { createSolanaTestnet } from "@/lib/chains/solana"
+
+const testnet = createSolanaTestnet()
+// { id: "solana:testnet", label: "Testnet", url: "testnet" }
+```
+
+### createSolanaLocalnet
+
+Creates a Solana localnet network definition.
+
+```tsx
+import { createSolanaLocalnet } from "@/lib/chains/solana"
+
+const localnet = createSolanaLocalnet()
+// { id: "solana:localnet", label: "Localnet", url: "localnet" }
+```
+
+## Usage
+
+### Basic Setup (Default)
+
+The simplest setup - `SolanaWalletProvider` automatically uses the `QueryClient` from context if `QueryClientProvider` is present, or creates one internally.
+
+```tsx
+import { QueryClientProvider } from "@tanstack/react-query"
+import {
+  createWalletConfig,
+  WalletProvider,
+} from "@/components/wallet/provider"
+import {
+  createSolanaMainnet,
+  createSolanaDevnet,
+  createSolanaTestnet,
+} from "@/lib/chains/solana"
+import { SolanaWalletProvider } from "@/lib/chains/solana/adapter"
+
+const queryClient = new QueryClient()
+
+export default function App({ children }) {
+  const config = createWalletConfig({
+    networks: [
+      createSolanaMainnet(),
+      createSolanaDevnet(),
+      createSolanaTestnet(),
+    ],
+  })
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <WalletProvider config={config}>
+        <SolanaWalletProvider>
+          {children}
+        </SolanaWalletProvider>
+      </WalletProvider>
+    </QueryClientProvider>
+  )
+}
+```
+
+### Advanced Setup (Explicit QueryClient)
+
+For more control, you can pass a `QueryClient` instance explicitly to `SolanaWalletProvider`. This is useful when you need to share the same `QueryClient` across multiple providers or configure it with custom options.
+
+```tsx
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import {
+  createWalletConfig,
+  WalletProvider,
+} from "@/components/wallet/provider"
+import {
+  createSolanaMainnet,
+  createSolanaDevnet,
+  createSolanaTestnet,
+} from "@/lib/chains/solana"
+import { SolanaWalletProvider } from "@/lib/chains/solana/adapter"
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5, // 5 minutes
+      refetchOnWindowFocus: false,
+    },
+  },
+})
+
+export default function App({ children }) {
+  const config = createWalletConfig({
+    networks: [
+      createSolanaMainnet(),
+      createSolanaDevnet(),
+      createSolanaTestnet(),
+    ],
+  })
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <WalletProvider config={config}>
+        <SolanaWalletProvider queryClient={queryClient}>
+          {children}
+        </SolanaWalletProvider>
+      </WalletProvider>
+    </QueryClientProvider>
+  )
+}
+```
+
+### Custom Network URLs
+
+You can override the network URL when creating networks:
+
+```tsx
+import { createSolanaMainnet } from "@/lib/chains/solana"
+
+const customMainnet = createSolanaMainnet({
+  url: "https://api.mainnet-beta.solana.com"
+})
+```
+
+## Utilities
+
+### formatSol
+
+Formats a SOL balance (in lamports) to a human-readable string.
+
+```typescript
+function formatSol({
+  balance: bigint;
+  locale?: Intl.LocalesArgument;
+  options?: Intl.NumberFormatOptions;
+}): string
+```
+
+#### Parameters
+
+| Parameter | Type | Default | Description |
+| --- | --- | --- | --- |
+| `balance` | `bigint` | - | **Required.** Balance in lamports. |
+| `locale` | `string` | `"en-US"` | Locale for number formatting. |
+| `options` | `Intl.NumberFormatOptions` | See below | Number formatting options. |
+
+Default `options`:
+```typescript
+{
+  style: "decimal",
+  minimumFractionDigits: 2,
+  maximumFractionDigits: 5,
+}
+```
+
+#### Examples
+
+```tsx
+import { formatSol } from "@/lib/chains/solana"
+
+// Basic usage
+const balance = formatSol({ balance: 1000000000n }) // "1.00"
+
+// With custom locale
+const balanceFR = formatSol({ 
+  balance: 1000000000n,
+  locale: "fr-FR" 
+}) // "1,00"
+
+// With custom options
+const balanceCustom = formatSol({
+  balance: 1000000000n,
+  options: {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 2,
+  }
+}) // "1"
+```
+
+## Solana Client Integration
+
+<Preview name="solana-client-demo" />
+
+The Solana adapter provides a complete integration with [`@gillsdk/react`](https://github.com/gillsdk/gill), offering React hooks for fetching Solana blockchain data with automatic caching, refetching, and error handling.
+
+### SolanaWalletProvider
+
+Optional plugin provider that injects a Solana client into the wallet context and enables `@gillsdk/react` hooks. It automatically configures the React Query client with the necessary defaults.
+
+**Default Behavior**: If `QueryClientProvider` is present in your component tree, `SolanaWalletProvider` will automatically use its `QueryClient`. You don't need to pass `queryClient` explicitly unless you need custom configuration.
+
+#### Basic Usage (Default)
+
+```tsx
+import { QueryClientProvider } from "@tanstack/react-query"
+import { SolanaWalletProvider } from "@/lib/chains/solana/adapter"
+import { WalletProvider } from "@/components/wallet/provider"
+
+const queryClient = new QueryClient()
+
+export default function App({ children }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <WalletProvider config={walletConfig}>
+        <SolanaWalletProvider>
+          {children}
+        </SolanaWalletProvider>
+      </WalletProvider>
+    </QueryClientProvider>
+  )
+}
+```
+
+#### Advanced Usage (Explicit QueryClient)
+
+```tsx
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { SolanaWalletProvider } from "@/lib/chains/solana/adapter"
+import { WalletProvider } from "@/components/wallet/provider"
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+    },
+  },
+})
+
+export default function App({ children }) {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <WalletProvider config={walletConfig}>
+        <SolanaWalletProvider queryClient={queryClient}>
+          {children}
+        </SolanaWalletProvider>
+      </WalletProvider>
+    </QueryClientProvider>
+  )
+}
+```
+
+#### Props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `children` | `ReactNode` | - | **Required.** Child components. |
+| `url` | `SolanaClientUrlOrMoniker` | Network URL | Optional custom RPC URL or moniker (e.g., `"mainnet"`, `"devnet"`). |
+| `queryClient` | `QueryClient` | From `QueryClientProvider` context | Optional React Query client. If not provided, automatically uses the client from `QueryClientProvider` context via `useQueryClient()`. The provider handles all necessary configuration internally. |
+
+#### With Custom RPC URL
+
+```tsx
+<SolanaWalletProvider url="https://api.mainnet-beta.solana.com">
+  {children}
+</SolanaWalletProvider>
+```
+
+### Hooks
+
+The Solana adapter provides hooks that wrap `@gillsdk/react` hooks with automatic network detection and enabled state management.
+
+#### useSolanaBalance
+
+Fetch an account's balance in lamports. Automatically uses the connected account's address if no address is provided.
+
+```tsx
+import { useSolanaBalance } from "@/lib/chains/solana/adapter"
+import { formatSol } from "@/lib/chains/solana"
+
+function BalanceDisplay() {
+  const { balance, isLoading, isError, error } = useSolanaBalance()
+  
+  if (isLoading) return <div>Loading...</div>
+  if (isError) return <div>Error: {error?.message}</div>
+  
+  return <div>{formatSol({ balance: balance ?? 0n })} SOL</div>
+}
+```
+
+#### useSolanaAccount
+
+Fetch account information for an address.
+
+```tsx
+import { useSolanaAccount } from "@/lib/chains/solana/adapter"
+
+function AccountInfo({ address }: { address: string }) {
+  const { account, isLoading } = useSolanaAccount(address)
+  
+  if (isLoading) return <div>Loading...</div>
+  if (!account) return <div>Account not found</div>
+  
+  return <div>Owner: {account.owner}</div>
+}
+```
+
+#### useSolanaTokenMint
+
+Fetch and decode a token mint account.
+
+```tsx
+import { useSolanaTokenMint } from "@/lib/chains/solana/adapter"
+
+function TokenInfo({ mint }: { mint: string }) {
+  const { account, isLoading } = useSolanaTokenMint(mint)
+  
+  if (isLoading) return <div>Loading...</div>
+  
+  return (
+    <div>
+      <p>Decimals: {account?.data.decimals}</p>
+      <p>Supply: {account?.data.supply.toString()}</p>
+    </div>
+  )
+}
+```
+
+#### useSolanaTokenAccount
+
+Fetch and decode a token account for a given mint and owner.
+
+```tsx
+import { useSolanaTokenAccount } from "@/lib/chains/solana/adapter"
+
+function TokenBalance({ mint, owner }: { mint: string; owner: string }) {
+  const { account, isLoading } = useSolanaTokenAccount(mint, owner)
+  
+  if (isLoading) return <div>Loading...</div>
+  
+  return <div>Amount: {account?.data.amount.toString()}</div>
+}
+```
+
+#### useSolanaProgramAccounts
+
+Fetch all accounts owned by a program.
+
+```tsx
+import { useSolanaProgramAccounts } from "@/lib/chains/solana/adapter"
+
+function ProgramAccounts({ program }: { program: string }) {
+  const { accounts, isLoading } = useSolanaProgramAccounts(program, {
+    commitment: "confirmed",
+  })
+  
+  if (isLoading) return <div>Loading...</div>
+  
+  return (
+    <div>
+      {accounts?.map((acc, i) => (
+        <div key={i}>Account: {acc.pubkey}</div>
+      ))}
+    </div>
+  )
+}
+```
+
+#### useSolanaSignaturesForAddress
+
+Fetch transaction signatures for an address.
+
+```tsx
+import { useSolanaSignaturesForAddress } from "@/lib/chains/solana/adapter"
+
+function TransactionHistory({ address }: { address: string }) {
+  const { signatures, isLoading } = useSolanaSignaturesForAddress(address, {
+    limit: 10,
+  })
+  
+  if (isLoading) return <div>Loading...</div>
+  
+  return (
+    <div>
+      {signatures?.map((sig) => (
+        <div key={sig.signature}>{sig.signature}</div>
+      ))}
+    </div>
+  )
+}
+```
+
+#### useSolanaSignatureStatuses
+
+Check the status of transaction signatures.
+
+```tsx
+import { useSolanaSignatureStatuses } from "@/lib/chains/solana/adapter"
+
+function SignatureStatus({ signatures }: { signatures: string[] }) {
+  const { statuses, isLoading } = useSolanaSignatureStatuses(signatures)
+  
+  if (isLoading) return <div>Loading...</div>
+  
+  return (
+    <div>
+      {statuses?.map((status, i) => (
+        <div key={i}>
+          {status?.confirmationStatus ?? "Unknown"}
+        </div>
+      ))}
+    </div>
+  )
+}
+```
+
+#### useSolanaLatestBlockhash
+
+Fetch the latest blockhash. Useful for transaction building.
+
+```tsx
+import { useSolanaLatestBlockhash } from "@/lib/chains/solana/adapter"
+
+function BlockhashDisplay() {
+  const { latestBlockhash, isLoading } = useSolanaLatestBlockhash()
+  
+  if (isLoading) return <div>Loading...</div>
+  
+  return <div>Blockhash: {latestBlockhash?.blockhash}</div>
+}
+```
+
+#### useSolanaClient
+
+Get the current Solana client instance.
+
+```tsx
+import { useSolanaClient } from "@/lib/chains/solana/adapter"
+
+function MyComponent() {
+  const { rpc, rpcSubscriptions } = useSolanaClient()
+  
+  // Use rpc for direct RPC calls
+  const balance = await rpc.getBalance(address).send()
+}
+```
+
+#### useSolanaWallet
+
+Get the Solana client from wallet context or create a fallback.
+
+```tsx
+import { useSolanaWallet } from "@/lib/chains/solana/adapter"
+
+function MyComponent() {
+  const client = useSolanaWallet()
+  // Use client for direct operations
+}
+```
+
+#### useUpdateSolanaClient
+
+Update the Solana client instance. Useful for switching RPC endpoints dynamically.
+
+```tsx
+import { useUpdateSolanaClient, useSolanaNetwork } from "@/lib/chains/solana/adapter"
+import { createSolanaClient } from "gill"
+
+function NetworkSwitcher() {
+  const { mutate: updateClient } = useUpdateSolanaClient()
+  const network = useSolanaNetwork()
+  
+  const handleSwitchRPC = () => {
+    const newClient = createSolanaClient({
+      urlOrMoniker: "https://custom-rpc.com"
+    })
+    updateClient(newClient)
+  }
+  
+  return <button onClick={handleSwitchRPC}>Switch RPC</button>
+}
+```
+
+#### useSolanaNetwork
+
+Get the current Solana network information.
+
+```tsx
+import { useSolanaNetwork } from "@/lib/chains/solana/adapter"
+
+function NetworkInfo() {
+  const network = useSolanaNetwork()
+  
+  if (!network) return <div>Not on Solana network</div>
+  
+  return (
+    <div>
+      <p>Network: {network.networkId}</p>
+      <p>Cluster: {network.cluster}</p>
+    </div>
+  )
+}
+```
+
+### Hook Behavior
+
+All hooks work out of the box with zero configuration:
+
+- **Automatic network detection**: Hooks automatically detect if you're on a Solana network and disable queries when not
+- **Smart defaults**: Use the connected account's address automatically when no address is provided
+- **Safe fallbacks**: Return safe defaults (null values, no loading/error states) when conditions aren't met
+- **React Query integration**: Full integration with React Query for automatic caching, background refetching, and error handling
+- **No configuration needed**: Works with the default `QueryClient` from `QueryClientProvider` - no additional setup required
+
+### Integration with @gillsdk/react
+
+The Solana adapter is built on top of `@gillsdk/react`, which provides:
+
+- Automatic caching with React Query
+- Background refetching
+- Error handling and retry logic
+- Optimistic updates support
+- Type-safe RPC calls
+
+All hooks from the adapter are wrappers around `@gillsdk/react` hooks, ensuring full compatibility and feature parity.
+
+## Types
+
+### SolanaNetwork
+
+Extended network type for Solana networks.
+
+```typescript
+interface SolanaNetwork extends Network {
+  id: SolanaNetworkId;
+  url: ClusterUrl;
+}
+```
+
+### SolanaNetworkId
+
+Type for Solana network IDs.
+
+```typescript
+type SolanaNetworkId = `solana:${string}`
+```
+
+## Network IDs
+
+Solana network IDs follow the format: `solana:{network}`
+
+- `solana:mainnet` - Mainnet
+- `solana:devnet` - Devnet
+- `solana:testnet` - Testnet
+- `solana:localnet` - Localnet
+
+<Callout>
+- Network URLs use `ClusterUrl` type from `gill` package
+- The `formatSol` function uses `LAMPORTS_PER_SOL` (1,000,000,000) for conversion
+- All network definitions are type-safe and can be extended
+- Networks can be customized by passing partial network objects to factory functions
+- The `SolanaWalletProvider` automatically configures React Query with required defaults
+- All hooks integrate seamlessly with `@gillsdk/react` for optimal developer experience
+- The adapter handles network detection and query enabling/disabling automatically
+</Callout>

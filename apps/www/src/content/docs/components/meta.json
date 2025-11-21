@@ -1,0 +1,14 @@
+{
+  "title": "Components",
+  "pages": [
+    "provider",
+    "connect",
+    "network-control",
+    "list",
+    "menu",
+    "error",
+    "onboarding",
+    "icon",
+    "balance"
+  ]
+}

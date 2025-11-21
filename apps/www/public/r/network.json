@@ -1,0 +1,13 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "network",
+  "type": "registry:lib",
+  "files": [
+    {
+      "path": "src/registry/default/lib/chains/network.ts",
+      "content": "import type { IdentifierString } from \"@wallet-standard/core\";\n\ntype Network = {\n  id: IdentifierString;\n  label: string;\n  url: string;\n};\n\nfunction defineNetwork<NetworkType extends Network>({\n  id,\n  label,\n  url,\n}: NetworkType) {\n  return (props: Partial<Network> = {}): Network => ({\n    id,\n    label,\n    url,\n    ...props,\n  });\n}\n\nexport { type Network, defineNetwork };\n",
+      "type": "registry:lib",
+      "target": "lib/chains/network.ts"
+    }
+  ]
+}

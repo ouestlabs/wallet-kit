@@ -1,0 +1,141 @@
+---
+title: Network Control
+description: Components to display and select the active network.
+component: true
+links:
+  doc:
+    - https://ui.shadcn.com/docs/components/badge
+---
+
+<Preview name="network-select-demo" />
+
+## Installation
+
+<CodeTabs>
+  <TabsList>
+    <TabsTrigger value="cli">CLI</TabsTrigger>
+    <TabsTrigger value="manual">Manual</TabsTrigger>
+  </TabsList>
+  <TabsContent value="cli">
+    ```bash
+    npx shadcn@latest add @wallet-kit/network-control
+    ```
+  </TabsContent>
+  <TabsContent value="manual">
+    <Steps>
+      <Step>Install required shadcn/ui primitives:</Step>
+      ```bash
+      npx shadcn@latest add badge
+      ```
+      <Step>Install required wallet components:</Step>
+      ```bash
+      npx shadcn@latest add @wallet-kit/provider @wallet-kit/use-wallet
+      ```
+      <Step>Copy the component code:</Step>
+      <Source name="network-control" title="components/wallet/network.tsx" />
+    </Steps>
+  </TabsContent>
+</CodeTabs>
+
+## Usage
+
+```tsx
+import { NetworkSelect, NetworkBadge } from "@/components/wallet/network"
+
+export default function Demo() {
+  return (
+    <div className="flex items-center gap-2">
+      <NetworkBadge />
+      <NetworkSelect />
+    </div>
+  )
+}
+```
+
+## API Reference
+
+### NetworkSelect
+
+A native select component that allows switching between configured networks.
+
+#### Props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `className` | `string` | - | Additional CSS classes. |
+
+Inherits all props from shadcn/ui `NativeSelect`.
+
+#### Behavior
+
+- Displays all networks configured in `WalletProvider`
+- Automatically updates when network changes
+- Uses native HTML select for accessibility
+
+### NetworkBadge
+
+A badge component that displays the current network name.
+
+#### Props
+
+| Prop | Type | Default | Description |
+| --- | --- | --- | --- |
+| `network` | `Network` | From context | Optional network object. If not provided, fetches from `WalletNetworkContext`. |
+| `className` | `string` | - | Additional CSS classes. |
+| `variant` | `string` | `"outline"` | Badge variant style. |
+
+Inherits all props from shadcn/ui `Badge`.
+
+#### Behavior
+
+- **With Network Prop**: Displays the provided network's label
+- **Without Network Prop**: Fetches network from context automatically
+- **No Network**: Renders `null` if no network is available
+- **SSR Safe**: Returns `null` during server-side rendering
+
+## Examples
+
+### Basic Usage
+
+```tsx
+import { NetworkSelect, NetworkBadge } from "@/components/wallet/network"
+
+export default function NetworkControls() {
+  return (
+    <div className="flex items-center gap-2">
+      <NetworkBadge />
+      <NetworkSelect />
+    </div>
+  )
+}
+```
+
+### Badge Only
+
+```tsx
+import { NetworkBadge } from "@/components/wallet/network"
+
+export default function NetworkDisplay() {
+  return <NetworkBadge />
+}
+```
+
+### With Custom Network
+
+```tsx
+import { NetworkBadge } from "@/components/wallet/network"
+import { createSolanaMainnet } from "@/lib/chains/solana"
+
+export default function Demo() {
+  const mainnet = createSolanaMainnet()
+  
+  return <NetworkBadge network={mainnet} />
+}
+```
+
+<Callout>
+- Both components require `WalletProvider` to be in the component tree
+- `NetworkBadge` can work standalone with a network prop or fetch from context
+- Network changes are automatically persisted to localStorage
+- The select component uses native HTML for better accessibility
+</Callout>

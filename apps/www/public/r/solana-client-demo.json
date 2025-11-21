@@ -1,0 +1,24 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "solana-client-demo",
+  "type": "registry:block",
+  "description": "Example using SolanaWalletProvider and useSolanaWallet hook to interact with Solana RPC",
+  "dependencies": [],
+  "registryDependencies": [
+    "@wallet-kit/provider",
+    "@wallet-kit/solana-adapter",
+    "@wallet-kit/solana",
+    "@wallet-kit/use-wallet"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/examples/solana-client-demo.tsx",
+      "content": "\"use client\";\n\nimport { getExplorerLink } from \"gill\";\nimport { useWalletAccount } from \"@/registry/default/hooks/use-wallet\";\nimport { formatSol } from \"@/registry/default/lib/chains/solana\";\nimport {\n  useSolanaBalance,\n  useSolanaNetwork,\n} from \"@/registry/default/lib/chains/solana/adapter\";\nimport { ellipsify } from \"@/registry/default/lib/ellipsify\";\nimport { WalletBalance } from \"@/registry/default/ui/wallet/balance\";\nimport { ConnectWallet } from \"@/registry/default/ui/wallet/connect\";\nimport { ExplorerLink } from \"@/registry/default/ui/wallet/explorer-link\";\nimport { WalletIcon } from \"@/registry/default/ui/wallet/icon\";\nimport { WalletMenu } from \"@/registry/default/ui/wallet/menu\";\nimport { NetworkBadge } from \"@/registry/default/ui/wallet/network\";\n\nexport default function SolanaClientDemo() {\n  const { account, wallet } = useWalletAccount();\n  const solanaNetwork = useSolanaNetwork();\n  const { balance, isLoading, isError, error } = useSolanaBalance();\n\n  const explorerUrl =\n    account && solanaNetwork\n      ? getExplorerLink({\n          address: account.address,\n          cluster: solanaNetwork.cluster,\n        })\n      : \"\";\n\n  if (!account) {\n    return (\n      <div className=\"flex flex-col items-center gap-4\">\n        <div className=\"flex flex-col gap-2 text-center\">\n          <h3 className=\"font-semibold text-sm\">Solana Client Demo</h3>\n          <p className=\"text-muted-foreground text-xs\">\n            Connect a wallet to use Solana RPC client\n          </p>\n        </div>\n        <ConnectWallet />\n      </div>\n    );\n  }\n\n  return (\n    <div className=\"flex w-full flex-col gap-4\">\n      <div className=\"flex items-center justify-between\">\n        <div className=\"flex flex-col gap-1\">\n          <h3 className=\"font-semibold text-sm\">Solana Client Demo</h3>\n          <p className=\"text-muted-foreground text-xs\">\n            Using <code className=\"text-xs\">useSolanaWallet()</code> hook\n          </p>\n        </div>\n        {account && <NetworkBadge />}\n      </div>\n\n      {account && wallet && (\n        <>\n          <div className=\"flex items-center gap-3 rounded-lg border p-3\">\n            <WalletIcon wallet={wallet} />\n            <div className=\"flex flex-1 flex-col gap-1\">\n              <p className=\"font-medium text-sm\">{wallet.name}</p>\n              <p className=\"font-mono text-muted-foreground text-xs\">\n                {ellipsify(account.address, 8)}\n              </p>\n            </div>\n            <WalletMenu />\n          </div>\n\n          <div className=\"flex items-center justify-between rounded-lg border p-3\">\n            <div className=\"flex flex-col gap-1\">\n              <p className=\"text-muted-foreground text-xs\">Balance</p>\n              {isError && error ? (\n                <span className=\"text-destructive text-sm\">\n                  {error instanceof Error ? error.message : String(error)}\n                </span>\n              ) : (\n                <WalletBalance\n                  balance={balance ?? null}\n                  format={(balanceValue) =>\n                    formatSol({ balance: balanceValue })\n                  }\n                  loading={isLoading}\n                />\n              )}\n            </div>\n            {explorerUrl && (\n              <ExplorerLink label=\"View on Explorer\" url={explorerUrl} />\n            )}\n          </div>\n        </>\n      )}\n    </div>\n  );\n}\n",
+      "type": "registry:block",
+      "target": "components/wallet/particles/solana-client-demo.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

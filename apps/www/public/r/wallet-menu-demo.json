@@ -1,0 +1,23 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "wallet-menu-demo",
+  "type": "registry:block",
+  "description": "Wallet dropdown menu with account info and actions",
+  "dependencies": [],
+  "registryDependencies": [
+    "@wallet-kit/provider",
+    "@wallet-kit/menu",
+    "@wallet-kit/solana"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/examples/wallet-menu-demo.tsx",
+      "content": "\"use client\";\n\nimport { WalletMenu } from \"@/registry/default/ui/wallet/menu\";\n\nexport default function WalletMenuDemo() {\n  return (\n    <div className=\"flex items-center justify-center\">\n      <WalletMenu />\n    </div>\n  );\n}\n",
+      "type": "registry:block",
+      "target": "components/wallet/particles/wallet-menu-demo.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

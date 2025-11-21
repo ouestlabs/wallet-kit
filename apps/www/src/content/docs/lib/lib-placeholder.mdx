@@ -1,0 +1,56 @@
+---
+title: Lib Placeholder
+description: Placeholder lib.
+links:
+  doc: https://ui.shadcn.com/docs/components/placeholder
+  api: https://ui.shadcn.com/docs/components/placeholder#api-reference
+---
+
+The `Placeholder` lib is a placeholder for the wallet.
+
+## Installation
+
+<CodeTabs>
+  <TabsList>
+    <TabsTrigger value="cli">CLI</TabsTrigger>
+    <TabsTrigger value="manual">Manual</TabsTrigger>
+  </TabsList>
+  <TabsContent value="cli">
+
+  ```bash
+  npx shadcn@latest add related packages
+  ```
+
+  </TabsContent>
+
+  <TabsContent value="manual">
+
+    <Steps>
+      <Step>Copy and paste the following code into your project.</Step>
+        <Source name="lib-placeholder" title="lib/lib-placeholder.ts" />
+      <Step>Update the import paths to match your project setup.</Step>
+    </Steps>
+
+  </TabsContent>
+</CodeTabs>
+
+### Import
+
+Import the placeholder lib:
+
+```tsx
+import { Placeholder } from "@/lib/lib-placeholder";
+```
+
+## Usage
+
+```tsx
+const placeholder = new Placeholder();
+placeholder.placeholder();
+```
+
+## API Reference
+
+### Placeholder
+
+This lib is a placeholder for the wallet.

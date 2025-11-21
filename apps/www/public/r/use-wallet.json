@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "use-wallet",
+  "type": "registry:hook",
+  "dependencies": [
+    "@wallet-standard/react"
+  ],
+  "registryDependencies": [
+    "@wallet-kit/context",
+    "@wallet-kit/network",
+    "@wallet-kit/storage"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/hooks/use-wallet.ts",
+      "content": "\"use client\";\n\nimport {\n  type UiWallet,\n  useConnect,\n  useDisconnect,\n  useWallets,\n} from \"@wallet-standard/react\";\nimport { useContext, useEffect, useMemo } from \"react\";\nimport { toast } from \"sonner\";\n\nimport {\n  WalletAccountContext,\n  WalletNetworkContext,\n  WalletUiContext,\n  type WalletUiContextValue,\n} from \"@/registry/default/lib/chains/context\";\n\nfunction useWallet<TClient = unknown>() {\n  return useContext(WalletUiContext) as WalletUiContextValue<TClient>;\n}\n\nfunction useWalletAccount() {\n  return useContext(WalletAccountContext);\n}\n\nfunction useWalletNetwork() {\n  return useContext(WalletNetworkContext);\n}\n\nfunction useAvailableWallets(chainPrefix?: string) {\n  const readonlyWallets = useWallets();\n  return useMemo(\n    () =>\n      readonlyWallets\n        .filter(\n          (wallet) =>\n            !chainPrefix || wallet.chains.some((i) => i.startsWith(chainPrefix))\n        )\n        .sort((a, b) => a.name.localeCompare(b.name)),\n    [readonlyWallets, chainPrefix]\n  );\n}\n\nfunction useWalletConnection({ wallet }: { wallet: UiWallet }) {\n  const { connect: connectAccount } = useWallet();\n  const { setAccount } = useWalletAccount();\n\n  const [isConnecting, connect] = useConnect(wallet);\n  const [isDisconnecting, disconnect] = useDisconnect(wallet);\n\n  useEffect(() => {\n    if (isDisconnecting) {\n      setAccount(undefined);\n    }\n  }, [isDisconnecting, setAccount]);\n\n  return {\n    connect: async () => {\n      const connectedAccount = await connect();\n      if (!connectedAccount.length) {\n        console.warn(`Connect to ${wallet.name} but there are no accounts.`);\n        return connectedAccount;\n      }\n      // TODO: Support wallets with multiple accounts\n      const first = connectedAccount[0];\n      if (!first) {\n        return connectedAccount;\n      }\n      setAccount(first);\n      connectAccount(first);\n\n      toast.success(`Connected to ${wallet.name} successfully`);\n      return connectedAccount;\n    },\n    disconnect: async () => {\n      await disconnect();\n      toast.success(`Disconnected from ${wallet.name} successfully`);\n    },\n    isConnecting,\n    isDisconnecting,\n  };\n}\n\nexport {\n  useWallet,\n  useWalletAccount,\n  useWalletNetwork,\n  useWalletConnection,\n  useAvailableWallets,\n};\n",
+      "type": "registry:hook",
+      "target": "hooks/use-wallet.ts"
+    }
+  ]
+}

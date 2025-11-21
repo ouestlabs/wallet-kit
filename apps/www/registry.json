@@ -1,0 +1,1166 @@
+{
+  "name": "shadcn/ui",
+  "homepage": "https://ui.shadcn.com",
+  "items": [
+    {
+      "name": "provider",
+      "type": "registry:component",
+      "dependencies": [
+        "@wallet-standard/react",
+        "@nanostores/react"
+      ],
+      "registryDependencies": [
+        "@wallet-kit/context",
+        "@wallet-kit/network",
+        "@wallet-kit/storage",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/ui/wallet/provider.tsx",
+          "type": "registry:component",
+          "target": "components/wallet/provider.tsx",
+          "content": "\"use client\";\n\nimport { useStore } from \"@nanostores/react\";\nimport {\n  getUiWalletAccountStorageKey,\n  type UiWallet,\n  type UiWalletAccount,\n  uiWalletAccountBelongsToUiWallet,\n  uiWalletAccountsAreSame,\n  useWallets,\n} from \"@wallet-standard/react\";\nimport {\n  type ReactNode,\n  useCallback,\n  useEffect,\n  useMemo,\n  useState,\n} from \"react\";\n\nimport {\n  useAvailableWallets,\n  useWalletAccount,\n  useWalletNetwork,\n} from \"@/hooks/use-wallet\";\nimport {\n  WalletAccountContext,\n  WalletNetworkContext,\n  type WalletNetworkContextValue,\n  WalletUiContext,\n  type WalletUiContextProviderProps,\n  type WalletUiContextValue,\n} from \"@/lib/chains/context\";\nimport type { Network } from \"@/lib/chains/network\";\nimport {\n  createStorageAccount,\n  createStorageNetwork,\n  type StorageAccount,\n  type StorageNetwork,\n} from \"@/lib/chains/storage\";\n\ntype WalletNetworkContextProviderProps = {\n  children: ReactNode;\n  networks: Network[];\n  defaultNetworkId?: Network[\"id\"];\n  storage: StorageNetwork;\n  onNetworkChange?: (networkId: Network[\"id\"]) => void;\n};\n\nfunction WalletNetworkContextProvider({\n  children,\n  networks,\n  defaultNetworkId,\n  storage,\n  onNetworkChange,\n}: WalletNetworkContextProviderProps) {\n  const storedNetworkId = useStore(storage.value);\n\n  const networkFound = networks.find((n) => n.id === storedNetworkId);\n  const firstNetwork = networks[0];\n  const activeNetwork =\n    networkFound ??\n    networks.find((n) => n.id === defaultNetworkId) ??\n    firstNetwork;\n\n  if (!activeNetwork && networks.length > 0) {\n    console.warn(\"No active network found and networks list is not empty.\");\n  }\n\n  const value: WalletNetworkContextValue = {\n    network: activeNetwork ?? { id: \":\", label: \"\", url: \"\" },\n    networks,\n    setNetwork(networkId) {\n      const network = networks.find((n) => n.id === networkId);\n      if (!network) {\n        throw new Error(`Network ${networkId} not found`);\n      }\n      storage.set(networkId);\n      onNetworkChange?.(networkId);\n    },\n  };\n\n  return (\n    <WalletNetworkContext.Provider value={value}>\n      {children}\n    </WalletNetworkContext.Provider>\n  );\n}\n\nlet wasSetterInvoked = false;\n\nfunction getSavedWalletAccount(\n  wallets: readonly UiWallet[],\n  savedWalletNameAndAddress?: string\n): UiWalletAccount | undefined {\n  if (wasSetterInvoked) {\n    // After the user makes an explicit choice of wallet, stop trying to auto-select the\n    // saved wallet, if and when it appears.\n    return;\n  }\n  if (\n    !savedWalletNameAndAddress ||\n    typeof savedWalletNameAndAddress !== \"string\"\n  ) {\n    return;\n  }\n  const [savedWalletName, savedAccountAddress] =\n    savedWalletNameAndAddress.split(\":\");\n  if (!(savedWalletName && savedAccountAddress)) {\n    return;\n  }\n  const wallet = wallets.find((w) => w.name === savedWalletName);\n  if (!wallet) {\n    return;\n  }\n  return wallet.accounts.find((a) => a.address === savedAccountAddress);\n}\n\nfunction findWalletAccount(\n  account: UiWalletAccount,\n  wallets: readonly UiWallet[]\n): UiWalletAccount | undefined {\n  for (const uiWallet of wallets) {\n    for (const uiWalletAccount of uiWallet.accounts) {\n      if (uiWalletAccountsAreSame(account, uiWalletAccount)) {\n        return uiWalletAccount;\n      }\n    }\n    if (\n      uiWalletAccountBelongsToUiWallet(account, uiWallet) &&\n      uiWallet.accounts[0]\n    ) {\n      return uiWallet.accounts[0];\n    }\n  }\n  return;\n}\n\nfunction WalletAccountContextProvider({\n  children,\n  storage = createStorageAccount(),\n}: {\n  children: React.ReactNode;\n  storage?: StorageAccount;\n}) {\n  const { network } = useWalletNetwork();\n  const wallets = useWallets();\n  const accountId = useStore(storage.value);\n  const [account, setAccountInternal] = useState<UiWalletAccount | undefined>(\n    () => getSavedWalletAccount(wallets, accountId)\n  );\n\n  const setAccount = useCallback(\n    (setStateAction: React.SetStateAction<UiWalletAccount | undefined>) => {\n      setAccountInternal((prevAccount) => {\n        wasSetterInvoked = true;\n        return typeof setStateAction === \"function\"\n          ? setStateAction(prevAccount)\n          : setStateAction;\n      });\n    },\n    []\n  );\n\n  useEffect(() => {\n    if (wasSetterInvoked) {\n      const accountKey = account\n        ? getUiWalletAccountStorageKey(account)\n        : undefined;\n      storage.set(accountKey ? accountKey : undefined);\n    }\n  }, [account, storage]);\n\n  useEffect(() => {\n    const savedWalletAccount = getSavedWalletAccount(wallets, accountId);\n    if (savedWalletAccount && !account) {\n      setAccountInternal(savedWalletAccount);\n    }\n  }, [accountId, wallets, account]);\n\n  const walletAccount = useMemo(() => {\n    if (!account) {\n      return;\n    }\n    return findWalletAccount(account, wallets);\n  }, [account, wallets]);\n\n  useEffect(() => {\n    if (account && !walletAccount && !wasSetterInvoked) {\n      setTimeout(() => {\n        setAccountInternal(undefined);\n      }, 0);\n    }\n  }, [account, walletAccount]);\n\n  const wallet = useMemo(() => {\n    if (!walletAccount) {\n      return;\n    }\n    for (const uiWallet of wallets) {\n      for (const uiWalletAccount of uiWallet.accounts) {\n        if (uiWalletAccountsAreSame(walletAccount, uiWalletAccount)) {\n          return uiWallet;\n        }\n      }\n      if (\n        uiWalletAccountBelongsToUiWallet(walletAccount, uiWallet) &&\n        uiWallet.accounts[0]\n      ) {\n        // If the selected account belongs to this connected wallet, at least, then\n        // select one of its accounts.\n        return uiWallet;\n      }\n    }\n  }, [walletAccount, wallets]);\n\n  const accountKeys = useMemo(() => {\n    if (!account) {\n      return [];\n    }\n    return [network.id, getUiWalletAccountStorageKey(account)].filter(Boolean);\n  }, [account, network.id]);\n  return (\n    <WalletAccountContext.Provider\n      value={useMemo(\n        () => ({\n          account: walletAccount,\n          accountKeys,\n          network,\n          setAccount,\n          wallet,\n        }),\n        [walletAccount, wallet, accountKeys, setAccount, network]\n      )}\n    >\n      {children}\n    </WalletAccountContext.Provider>\n  );\n}\n\nfunction getChainNamespace(networkId: string | undefined): string | undefined {\n  return networkId?.split(\":\")[0];\n}\n\nfunction getChainPrefix(namespace: string | undefined): string | undefined {\n  return namespace ? `${namespace}:` : undefined;\n}\n\nfunction isClipboardAvailable(): boolean {\n  return (\n    typeof globalThis !== \"undefined\" &&\n    globalThis.navigator?.clipboard?.writeText !== undefined\n  );\n}\n\nasync function copyToClipboard(text: string): Promise<void> {\n  if (!isClipboardAvailable()) {\n    return;\n  }\n  await globalThis.navigator.clipboard.writeText(text);\n}\n\nfunction WalletUiContextProvider({\n  children,\n  client,\n}: WalletUiContextProviderProps) {\n  const { account, accountKeys, setAccount, wallet } = useWalletAccount();\n  const { network } = useWalletNetwork();\n\n  const chainNamespace = getChainNamespace(network?.id);\n  const chainPrefix = getChainPrefix(chainNamespace);\n\n  const wallets = useAvailableWallets(chainPrefix);\n  const connected = Boolean(wallet?.accounts && wallet.accounts.length > 0);\n  const [isModalOpen, setIsModalOpen] = useState(false);\n\n  const connect = useCallback(\n    (walletAccount: UiWalletAccount) => {\n      setAccount(walletAccount);\n      setIsModalOpen(false);\n    },\n    [setAccount]\n  );\n\n  const disconnect = useCallback(() => {\n    setAccount(undefined);\n  }, [setAccount]);\n\n  const copy = useCallback(async () => {\n    const address = account?.address;\n    if (!address) {\n      return;\n    }\n    await copyToClipboard(address);\n  }, [account]);\n\n  const value = useMemo<WalletUiContextValue>(\n    () => ({\n      account,\n      accountKeys,\n      client,\n      connect,\n      connected,\n      copy,\n      disconnect,\n      isModalOpen,\n      network,\n      setIsModalOpen,\n      wallet,\n      wallets,\n    }),\n    [\n      account,\n      accountKeys,\n      client,\n      connect,\n      connected,\n      copy,\n      disconnect,\n      isModalOpen,\n      network,\n      wallet,\n      wallets,\n    ]\n  );\n\n  return (\n    <WalletUiContext.Provider value={value}>\n      {children}\n    </WalletUiContext.Provider>\n  );\n}\n\ninterface WalletConfig extends Omit<WalletUiContextProviderProps, \"children\"> {\n  accountStorage?: StorageAccount;\n  networkStorage?: StorageNetwork;\n  networks: Network[];\n  defaultNetworkId?: Network[\"id\"];\n  onNetworkChange?: (networkId: Network[\"id\"]) => void;\n}\n\nfunction createWalletConfig(props: WalletConfig): WalletConfig {\n  return { ...props };\n}\n\nfunction WalletProvider({\n  children,\n  config: {\n    accountStorage,\n    networkStorage,\n    networks,\n    defaultNetworkId,\n    onNetworkChange,\n    ...uiConfig\n  },\n}: {\n  children: ReactNode;\n  config: WalletConfig;\n}) {\n  return (\n    <WalletNetworkContextProvider\n      defaultNetworkId={defaultNetworkId}\n      networks={networks}\n      onNetworkChange={onNetworkChange}\n      storage={networkStorage ?? createStorageNetwork()}\n    >\n      <WalletAccountContextProvider\n        storage={accountStorage ?? createStorageAccount()}\n      >\n        <WalletUiContextProvider {...uiConfig}>\n          {children}\n        </WalletUiContextProvider>\n      </WalletAccountContextProvider>\n    </WalletNetworkContextProvider>\n  );\n}\n\nexport { WalletProvider, createWalletConfig };\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "connect",
+      "type": "registry:component",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@shadcn/button",
+        "@shadcn/dialog",
+        "@shadcn/item",
+        "@shadcn/button-group",
+        "@wallet-kit/provider",
+        "@wallet-kit/list",
+        "@wallet-kit/onboarding",
+        "@wallet-kit/error",
+        "@wallet-kit/icon",
+        "@wallet-kit/ellipsify"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/ui/wallet/connect.tsx",
+          "type": "registry:component",
+          "target": "components/wallet/connect.tsx",
+          "content": "\"use client\";\n\nimport {\n  AlertCircle,\n  ChevronLeftIcon,\n  InfoIcon,\n  LogOutIcon,\n} from \"lucide-react\";\nimport type React from \"react\";\nimport { useEffect, useState } from \"react\";\nimport {\n  useWallet,\n  useWalletAccount,\n} from \"@/hooks/use-wallet\";\nimport { ellipsify } from \"@/lib/ellipsify\";\nimport { Button } from \"@/registry/default/ui/button\";\nimport {\n  ButtonGroup,\n  ButtonGroupText,\n} from \"@/registry/default/ui/button-group\";\nimport {\n  Dialog,\n  DialogContent,\n  DialogDescription,\n  DialogHeader,\n  DialogTitle,\n  DialogTrigger,\n} from \"@/registry/default/ui/dialog\";\nimport {\n  Item,\n  ItemActions,\n  ItemContent,\n  ItemDescription,\n  ItemMedia,\n  ItemTitle,\n} from \"@/registry/default/ui/item\";\nimport {\n  NO_ERROR,\n  WalletErrorDialog,\n} from \"@/components/wallet/error\";\nimport { WalletIcon } from \"@/components/wallet/icon\";\nimport { WalletList } from \"@/components/wallet/list\";\nimport { WalletOnboarding } from \"@/components/wallet/onboarding\";\n\nfunction ConnectWallet({\n  className,\n  children,\n  variant = \"default\",\n  ...props\n}: React.ComponentProps<typeof Button>) {\n  const { wallets, disconnect } = useWallet();\n  const { setAccount, account, wallet } = useWalletAccount();\n  const [open, setOpen] = useState(false);\n  const [showInfo, setShowInfo] = useState(false);\n  const [error, setError] = useState<symbol>(NO_ERROR);\n\n  useEffect(() => {\n    if (!open) {\n      setShowInfo(false);\n    }\n  }, [open]);\n\n  if (account) {\n    return (\n      <ButtonGroup className={className}>\n        <ButtonGroupText>\n          <WalletIcon className=\"mr-2 size-4 rounded-sm\" wallet={wallet} />\n          {ellipsify(account.address)}\n        </ButtonGroupText>\n        <Button\n          onClick={() => disconnect()}\n          size=\"icon\"\n          variant={variant}\n          {...props}\n        >\n          <LogOutIcon />\n        </Button>\n      </ButtonGroup>\n    );\n  }\n\n  return (\n    <>\n      <Dialog onOpenChange={setOpen} open={open}>\n        <DialogTrigger asChild>\n          <Button className={className} variant={variant} {...props}>\n            {children || \"Connect Wallet\"}\n          </Button>\n        </DialogTrigger>\n        <DialogContent showCloseButton={false}>\n          <DialogHeader className=\"flex flex-row items-center justify-between\">\n            {!showInfo && (\n              <DialogTitle className=\"\">Connect Wallet</DialogTitle>\n            )}\n            <DialogDescription className=\"sr-only\" />\n            <Button\n              className=\"size-7 rounded-full\"\n              onClick={() => setShowInfo(!showInfo)}\n              size=\"icon\"\n              variant=\"ghost\"\n            >\n              {showInfo ? (\n                <ChevronLeftIcon className=\"text-foreground/50 group-hover:text-foreground\" />\n              ) : (\n                <InfoIcon className=\"text-foreground/50 group-hover:text-foreground\" />\n              )}\n            </Button>\n          </DialogHeader>\n\n          {showInfo ? (\n            <WalletOnboarding onClose={() => setShowInfo(false)} />\n          ) : (\n            <WalletList\n              select={(selectedAccount) => {\n                setAccount(selectedAccount);\n                setOpen(false);\n              }}\n              wallets={wallets}\n            />\n          )}\n        </DialogContent>\n      </Dialog>\n      {error !== NO_ERROR && (\n        <WalletErrorDialog error={error} onClose={() => setError(NO_ERROR)} />\n      )}\n    </>\n  );\n}\ninterface ConnectWalletPromptProps extends React.ComponentProps<typeof Item> {\n  title?: string;\n  description?: string;\n}\nfunction ConnectWalletPrompt({\n  variant = \"outline\",\n  title = \"Wallet not connected\",\n  description = \"Please connect your wallet to continue.\",\n  ...props\n}: ConnectWalletPromptProps) {\n  const { account } = useWalletAccount();\n  if (account) {\n    return null;\n  }\n  return (\n    <Item variant={variant} {...props}>\n      <ItemMedia variant=\"icon\">\n        <AlertCircle className=\"size-4 text-destructive\" />\n      </ItemMedia>\n      <ItemContent>\n        <ItemTitle>{title}</ItemTitle>\n        <ItemDescription className=\"-mt-1 text-xs\">\n          {description}\n        </ItemDescription>\n      </ItemContent>\n      <ItemActions>\n        <ConnectWallet />\n      </ItemActions>\n    </Item>\n  );\n}\n\nexport { ConnectWallet, ConnectWalletPrompt };\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "list",
+      "type": "registry:component",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@shadcn/button",
+        "@shadcn/spinner",
+        "@shadcn/alert",
+        "@shadcn/badge",
+        "@wallet-kit/icon",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/ui/wallet/list.tsx",
+          "type": "registry:component",
+          "target": "components/wallet/list.tsx",
+          "content": "import type { UiWallet, UiWalletAccount } from \"@wallet-standard/react\";\nimport { CircleAlertIcon, ExternalLink } from \"lucide-react\";\nimport type React from \"react\";\nimport {\n  useWalletAccount,\n  useWalletConnection,\n} from \"@/hooks/use-wallet\";\nimport { cn } from \"@/lib/utils\";\nimport { Alert, AlertDescription } from \"@/registry/default/ui/alert\";\nimport { Badge } from \"@/registry/default/ui/badge\";\nimport { Button } from \"@/registry/default/ui/button\";\nimport { Spinner } from \"@/registry/default/ui/spinner\";\nimport { WalletIcon } from \"@/components/wallet/icon\";\n\nfunction NoWalletDetected({ className }: { className?: string }) {\n  return (\n    <div className={cn(\"space-y-3\", className)}>\n      <Alert variant=\"destructive\">\n        <CircleAlertIcon className=\"mt-0.5\" />\n        <AlertDescription>\n          No wallet detected in this browser. Please install a Solana wallet\n          extension.\n        </AlertDescription>\n      </Alert>\n      <Button\n        className=\"w-full\"\n        onClick={() => window.open(\"https://phantom.app/download\", \"_blank\")}\n      >\n        Download Phantom Wallet\n        <ExternalLink />\n      </Button>\n    </div>\n  );\n}\n\ninterface WalletListItemProps extends React.ComponentProps<typeof Button> {\n  select?: (wallet: UiWalletAccount) => Promise<void> | void;\n  wallet: UiWallet;\n}\n\nfunction WalletListItem({\n  wallet,\n  select,\n  className,\n  ...props\n}: WalletListItemProps) {\n  const { connect, isConnecting } = useWalletConnection({ wallet });\n  const { wallet: connectedWallet } = useWalletAccount();\n  const isConnected = connectedWallet?.name === wallet.name;\n\n  return (\n    <Button\n      className={cn(\"h-auto\", className)}\n      disabled={isConnecting || isConnected}\n      onClick={async () => {\n        const accounts = await connect();\n        const account = accounts?.[0];\n        if (account && select) {\n          await select(account);\n        }\n      }}\n      {...props}\n    >\n      <WalletIcon wallet={wallet} />\n      <span className=\"grow text-left\">{wallet.name}</span>\n      {isConnecting && <Spinner />}\n      {isConnected && !isConnecting && (\n        <Badge className=\"ml-2\" variant=\"secondary\">\n          Connected\n        </Badge>\n      )}\n    </Button>\n  );\n}\n\ninterface WalletListProps extends React.ComponentProps<\"div\"> {\n  select?: (account: UiWalletAccount) => Promise<void> | void;\n  wallets: UiWallet[];\n}\n\nfunction WalletList({ select, wallets, ...props }: WalletListProps) {\n  if (wallets.length === 0) {\n    return <NoWalletDetected className={props.className} />;\n  }\n\n  return (\n    <div\n      className={cn(\n        \"flex max-h-[300px] flex-col space-y-2 overflow-y-auto p-2\",\n        props.className\n      )}\n      {...props}\n    >\n      {wallets.map((wallet, index) => (\n        <WalletListItem\n          key={`${wallet.name}-${index}`}\n          select={select}\n          wallet={wallet}\n        />\n      ))}\n    </div>\n  );\n}\n\nexport { WalletList };\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "menu",
+      "type": "registry:component",
+      "dependencies": [
+        "lucide-react",
+        "sonner"
+      ],
+      "registryDependencies": [
+        "@shadcn/button",
+        "@shadcn/dropdown-menu",
+        "@wallet-kit/connect",
+        "@wallet-kit/error",
+        "@wallet-kit/icon",
+        "@wallet-kit/ellipsify",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/ui/wallet/menu.tsx",
+          "type": "registry:component",
+          "target": "components/wallet/menu.tsx",
+          "content": "\"use client\";\n\nimport type { UiWallet, UiWalletAccount } from \"@wallet-standard/react\";\nimport { CopyIcon, LogOutIcon } from \"lucide-react\";\nimport type React from \"react\";\nimport { useMemo, useState } from \"react\";\nimport { toast } from \"sonner\";\nimport {\n  useWallet,\n  useWalletAccount,\n  useWalletConnection,\n} from \"@/hooks/use-wallet\";\nimport { ellipsify } from \"@/lib/ellipsify\";\nimport { Button } from \"@/registry/default/ui/button\";\nimport {\n  DropdownMenu,\n  DropdownMenuContent,\n  DropdownMenuItem,\n  DropdownMenuLabel,\n  DropdownMenuSeparator,\n  DropdownMenuTrigger,\n} from \"@/registry/default/ui/dropdown-menu\";\nimport { ConnectWallet } from \"@/components/wallet/connect\";\nimport {\n  NO_ERROR,\n  WalletErrorDialog,\n} from \"@/components/wallet/error\";\nimport { WalletIcon } from \"@/components/wallet/icon\";\n\nfunction WalletMenuContent({\n  account,\n  selectedWallet,\n  onDisconnect,\n  onError,\n  setDropdownOpen,\n}: {\n  account: UiWalletAccount;\n  selectedWallet: UiWallet;\n  onDisconnect: () => void;\n  onError: (error: unknown) => void;\n  setDropdownOpen: (open: boolean) => void;\n}) {\n  const { copy } = useWallet();\n  const { disconnect, isDisconnecting } = useWalletConnection({\n    wallet: selectedWallet,\n  });\n\n  const handleCopy = () => {\n    try {\n      copy();\n      toast.success(\"Address copied to clipboard\");\n    } catch {\n      toast.error(\"Failed to copy address\");\n    }\n  };\n\n  const handleDisconnect = async () => {\n    try {\n      await disconnect();\n      onDisconnect();\n      setDropdownOpen(false);\n    } catch (err) {\n      onError(err);\n    }\n  };\n\n  return (\n    <>\n      <DropdownMenuLabel className=\"flex items-center gap-2\">\n        <WalletIcon className=\"rounded-sm\" wallet={selectedWallet} />\n        <div className=\"flex flex-col\">\n          <span>{selectedWallet.name}</span>\n          <span className=\"text-muted-foreground text-xs\">Connected</span>\n        </div>\n      </DropdownMenuLabel>\n      <DropdownMenuSeparator />\n      <DropdownMenuItem onClick={handleCopy}>\n        <CopyIcon />\n        <span className=\"font-mono\">{ellipsify(account.address, 8)}</span>\n      </DropdownMenuItem>\n      <DropdownMenuSeparator />\n      <DropdownMenuItem\n        disabled={isDisconnecting}\n        onClick={handleDisconnect}\n        variant=\"destructive\"\n      >\n        <LogOutIcon />\n        <span>{isDisconnecting ? \"Disconnecting...\" : \"Disconnect\"}</span>\n      </DropdownMenuItem>\n    </>\n  );\n}\n\nfunction WalletMenu({\n  className,\n  children,\n  variant = \"default\",\n  ...props\n}: React.ComponentProps<typeof Button>) {\n  const { wallets } = useWallet();\n  const { account, setAccount } = useWalletAccount();\n  const [error, setError] = useState<symbol>(NO_ERROR);\n  const [dropdownOpen, setDropdownOpen] = useState(false);\n\n  const selectedWallet = useMemo(() => {\n    if (!account) {\n      return;\n    }\n    return wallets.find((wallet) =>\n      wallet.accounts.some((acc) => acc.address === account.address)\n    );\n  }, [account, wallets]);\n\n  const handleError = (err: unknown) => {\n    setError(err as symbol);\n  };\n\n  if (!account) {\n    return <ConnectWallet className={className} variant={variant} {...props} />;\n  }\n\n  if (!selectedWallet) {\n    return null;\n  }\n\n  return (\n    <>\n      <DropdownMenu onOpenChange={setDropdownOpen} open={dropdownOpen}>\n        <DropdownMenuTrigger asChild>\n          <Button className={className} variant={variant} {...props}>\n            <WalletIcon className=\"size-4 rounded-sm\" wallet={selectedWallet} />\n            <span className=\"font-mono text-sm\">\n              {ellipsify(account.address, 4)}\n            </span>\n          </Button>\n        </DropdownMenuTrigger>\n        <DropdownMenuContent>\n          <WalletMenuContent\n            account={account}\n            onDisconnect={() => setAccount(undefined)}\n            onError={handleError}\n            selectedWallet={selectedWallet}\n            setDropdownOpen={setDropdownOpen}\n          />\n        </DropdownMenuContent>\n      </DropdownMenu>\n      {error !== NO_ERROR && (\n        <WalletErrorDialog error={error} onClose={() => setError(NO_ERROR)} />\n      )}\n    </>\n  );\n}\n\nexport { WalletMenu };\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "network-control",
+      "type": "registry:component",
+      "dependencies": [],
+      "registryDependencies": [
+        "@shadcn/badge",
+        "@wallet-kit/use-wallet",
+        "@wallet-kit/network"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/ui/wallet/network.tsx",
+          "type": "registry:component",
+          "target": "components/wallet/network.tsx",
+          "content": "\"use client\";\n\nimport { useId } from \"react\";\nimport { useWalletNetwork } from \"@/hooks/use-wallet\";\nimport type { Network } from \"@/lib/chains/network\";\nimport { cn } from \"@/lib/utils\";\nimport { Badge } from \"@/registry/default/ui/badge\";\nimport {\n  NativeSelect,\n  NativeSelectOption,\n} from \"@/registry/default/ui/native-select\";\n\ninterface NetworkBadgeProps extends React.ComponentProps<typeof Badge> {\n  network?: Network;\n}\n\nfunction NetworkBadge({\n  className,\n  network: propsNetwork,\n  variant = \"default\",\n  ...props\n}: NetworkBadgeProps) {\n  const { network: contextNetwork } = useWalletNetwork();\n  const network = propsNetwork || contextNetwork;\n\n  if (!network) {\n    return null;\n  }\n\n  const networkName = network.label;\n\n  return (\n    <Badge className={cn(\"gap-1.5\", className)} variant={variant} {...props}>\n      {networkName}\n    </Badge>\n  );\n}\n\ninterface NetworkSelectProps\n  extends React.ComponentProps<typeof NativeSelect> {}\n\nfunction NetworkSelect({ className, id, ...props }: NetworkSelectProps) {\n  const generatedId = useId();\n  const { networks, network, setNetwork } = useWalletNetwork();\n\n  return (\n    <NativeSelect\n      className={cn(\"w-full\", className)}\n      id={id ?? generatedId}\n      onChange={(e) => setNetwork(e.target.value as Network[\"id\"])}\n      value={network.id}\n      {...props}\n    >\n      {networks.map((item) => (\n        <NativeSelectOption key={item.id} value={item.id}>\n          {item.label}\n        </NativeSelectOption>\n      ))}\n    </NativeSelect>\n  );\n}\n\nexport { NetworkSelect, NetworkBadge };\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "error",
+      "type": "registry:component",
+      "dependencies": [
+        "@wallet-standard/core"
+      ],
+      "registryDependencies": [
+        "@shadcn/alert-dialog",
+        "@shadcn/button"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/ui/wallet/error.tsx",
+          "type": "registry:component",
+          "target": "components/wallet/error.tsx",
+          "content": "\"use client\";\nimport {\n  isWalletStandardError,\n  WALLET_STANDARD_ERROR__FEATURES__WALLET_ACCOUNT_CHAIN_UNSUPPORTED,\n  WALLET_STANDARD_ERROR__FEATURES__WALLET_ACCOUNT_FEATURE_UNIMPLEMENTED,\n  WALLET_STANDARD_ERROR__FEATURES__WALLET_FEATURE_UNIMPLEMENTED,\n} from \"@wallet-standard/core\";\n\nimport React from \"react\";\nimport {\n  AlertDialog,\n  AlertDialogCancel,\n  AlertDialogContent,\n  AlertDialogDescription,\n  AlertDialogFooter,\n  AlertDialogHeader,\n  AlertDialogTitle,\n} from \"@/registry/default/ui/alert-dialog\";\nimport { Button } from \"@/registry/default/ui/button\";\n\nconst NO_ERROR = Symbol(\"NO_ERROR\");\n\nfunction getWalletErrorMessage(\n  err: unknown,\n  fallbackMessage: React.ReactNode\n): React.ReactNode {\n  if (\n    isWalletStandardError(\n      err,\n      WALLET_STANDARD_ERROR__FEATURES__WALLET_ACCOUNT_FEATURE_UNIMPLEMENTED\n    )\n  ) {\n    return (\n      <>\n        This account does not support the{\" \"}\n        <code className=\"rounded bg-card px-1.5 py-0.5 font-mono text-sm\">\n          {err.context.featureName}\n        </code>{\" \"}\n        feature\n      </>\n    );\n  }\n  if (\n    isWalletStandardError(\n      err,\n      WALLET_STANDARD_ERROR__FEATURES__WALLET_FEATURE_UNIMPLEMENTED\n    )\n  ) {\n    return (\n      <div className=\"flex flex-col gap-4\">\n        <p>\n          The wallet {err.context.walletName} (\n          {err.context.supportedChains.sort().map((chain, ii, { length }) => (\n            <React.Fragment key={chain}>\n              <code className=\"rounded bg-card px-1.5 py-0.5 font-mono text-sm\">\n                {chain}\n              </code>\n              {ii === length - 1 ? null : \", \"}\n            </React.Fragment>\n          ))}\n          ) does not support the\n          <code className=\"rounded bg-card px-1.5 py-0.5 font-mono text-sm\">\n            {err.context.featureName}\n          </code>\n          feature.\n        </p>\n        <div>\n          Features supported:\n          <ul className=\"mt-2 list-disc pl-5\">\n            {err.context.supportedFeatures.sort().map((featureName) => (\n              <li key={featureName}>\n                <code className=\"rounded bg-card px-1.5 py-0.5 font-mono text-sm\">\n                  {featureName}\n                </code>\n              </li>\n            ))}\n          </ul>\n        </div>\n      </div>\n    );\n  }\n  if (\n    isWalletStandardError(\n      err,\n      WALLET_STANDARD_ERROR__FEATURES__WALLET_ACCOUNT_CHAIN_UNSUPPORTED\n    )\n  ) {\n    return (\n      <div className=\"flex flex-col gap-4\">\n        <p>\n          This account does not support the chain{\" \"}\n          <code className=\"rounded bg-card px-1.5 py-0.5 font-mono text-sm\">\n            {err.context.chain}\n          </code>\n          .\n        </p>\n        <div>\n          Chains supported:\n          <ul className=\"mt-2 list-disc pl-5\">\n            {err.context.supportedChains.sort().map((chain) => (\n              <li key={chain}>\n                <code className=\"rounded bg-card px-1.5 py-0.5 font-mono text-sm\">\n                  {chain}\n                </code>\n              </li>\n            ))}\n          </ul>\n        </div>\n      </div>\n    );\n  }\n  if (err && typeof err === \"object\" && \"message\" in err) {\n    return String(err.message);\n  }\n  return fallbackMessage;\n}\n\ntype WalletErrorDialogProps = {\n  error: unknown;\n  onClose?: () => unknown;\n  title?: string;\n};\n\nfunction WalletErrorDialog({ error, onClose, title }: WalletErrorDialogProps) {\n  const [isOpen, setIsOpen] = React.useState(true);\n  return (\n    <AlertDialog\n      onOpenChange={(open) => {\n        if (!open && (!onClose || onClose() !== false)) {\n          setIsOpen(false);\n        }\n      }}\n      open={isOpen}\n    >\n      <AlertDialogContent>\n        <AlertDialogHeader>\n          <AlertDialogTitle className=\"text-destructive\">\n            {title ?? \"We encountered the following error\"}\n          </AlertDialogTitle>\n          <AlertDialogDescription className=\"mt-2 rounded-lg border border-muted bg-muted p-4\">\n            {getWalletErrorMessage(error, \"Unknown\")}\n          </AlertDialogDescription>\n        </AlertDialogHeader>\n        <AlertDialogFooter>\n          <AlertDialogCancel asChild>\n            <Button variant=\"outline\">Close</Button>\n          </AlertDialogCancel>\n        </AlertDialogFooter>\n      </AlertDialogContent>\n    </AlertDialog>\n  );\n}\n\nexport { WalletErrorDialog, getWalletErrorMessage, NO_ERROR };\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "onboarding",
+      "type": "registry:component",
+      "dependencies": [
+        "motion"
+      ],
+      "registryDependencies": [
+        "@shadcn/button"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/ui/wallet/onboarding.tsx",
+          "type": "registry:component",
+          "target": "components/wallet/onboarding.tsx",
+          "content": "\"use client\";\n\nimport { AnimatePresence, motion, type Transition } from \"motion/react\";\nimport { memo, useState } from \"react\";\nimport { Button } from \"@/registry/default/ui/button\";\n\ntype WalletIllustrationProps = {\n  className?: string;\n  circleColors?: [string, string, string, string];\n  currentStep: number;\n};\n\ntype AnimatedEllipseProps = {\n  cx: string;\n  cy: string;\n  rx: string;\n  ry: string;\n  transform: string;\n  fill: string;\n  filter: string;\n};\n\nconst AnimatedEllipse = memo(({ ...props }: AnimatedEllipseProps) => (\n  <motion.ellipse {...props} />\n));\n\nconst WalletIllustration = memo(\n  ({\n    className = \"\",\n    circleColors = [\"#5B48AD\", \"#DC1FFF\", \"#00FFA3\", \"#FECA1A\"],\n    currentStep,\n  }: WalletIllustrationProps) => {\n    const springTransition: Transition = Object.freeze({\n      type: \"spring\",\n      stiffness: 150,\n      damping: 19,\n      mass: 1.2,\n    });\n\n    const getStepName = (step: number): \"step1\" | \"step2\" | \"step3\" => {\n      if (step === 0) {\n        return \"step1\";\n      }\n      if (step === 1) {\n        return \"step2\";\n      }\n      return \"step3\";\n    };\n\n    const getBtcStepName = (\n      step: number\n    ): \"btcStep0\" | \"btcStep1\" | \"hidden\" => {\n      if (step === 0) {\n        return \"btcStep0\";\n      }\n      if (step === 1) {\n        return \"btcStep1\";\n      }\n      return \"hidden\";\n    };\n\n    const getEthStepName = (\n      step: number\n    ): \"ethStep0\" | \"ethStep1\" | \"hidden\" => {\n      if (step === 0) {\n        return \"ethStep0\";\n      }\n      if (step === 1) {\n        return \"ethStep1\";\n      }\n      return \"hidden\";\n    };\n\n    const getSolStepName = (\n      step: number\n    ): \"solStep0\" | \"solStep1\" | \"hidden\" => {\n      if (step === 0) {\n        return \"solStep0\";\n      }\n      if (step === 1) {\n        return \"solStep1\";\n      }\n      return \"hidden\";\n    };\n\n    const svgVariants = {\n      initial: {\n        y: 50,\n        rotate: -20,\n        scale: 0,\n      },\n      step1: {\n        y: 0,\n        rotate: 20,\n        scale: 1,\n        transition: {\n          springTransition,\n        },\n      },\n      step2: {\n        y: -44,\n        x: -115,\n        rotate: 360,\n        scale: 0.2,\n        transition: {\n          springTransition,\n        },\n      },\n      step3: {\n        y: 0,\n        x: 0,\n        rotate: 0,\n        scale: 0.6,\n        transition: {\n          ...springTransition,\n        },\n      },\n    };\n\n    const containerVariants = {\n      hidden: {},\n      visible: {\n        transition: {\n          staggerChildren: 0.1,\n          delayChildren: 0.2,\n        },\n      },\n    };\n\n    const circleVariants = {\n      visible: { scale: 1, opacity: 1, x: 0 },\n      hidden: { scale: 0, opacity: 0, x: -100 },\n    };\n\n    const backgroundVariants = {\n      hidden: { opacity: 0, scale: 0.8 },\n      visible: { opacity: 1, scale: 1, transition: { ...springTransition } },\n      step3: { opacity: 1, scale: 1, transition: { ...springTransition } },\n    };\n\n    const tokenVariants = {\n      hidden: { scale: 0, opacity: 0, x: -100 },\n      btcStep0: {\n        x: 10,\n        y: -120,\n        scale: 0.8,\n        rotate: -5,\n        opacity: 1,\n        transition: { springTransition, delay: 0.2 },\n      },\n      btcStep1: {\n        x: -150,\n        y: -22,\n        scale: 0.23,\n        rotate: -13,\n        opacity: 1,\n        transition: { springTransition },\n      },\n      ethStep0: {\n        x: 48,\n        y: 27,\n        scale: 0.7,\n        rotate: 0,\n        opacity: 1,\n        transition: { springTransition, delay: 0.3 },\n      },\n      ethStep1: {\n        x: -150,\n        y: 10,\n        scale: 0.23,\n        rotate: 0,\n        opacity: 1,\n        transition: { springTransition },\n      },\n      solStep0: {\n        x: -150,\n        y: -30,\n        scale: 0.6,\n        rotate: -15,\n        opacity: 1,\n        transition: { springTransition, delay: 0.4 },\n      },\n      solStep1: {\n        x: -150,\n        y: 42,\n        scale: 0.23,\n        rotate: 0,\n        opacity: 1,\n        transition: { springTransition },\n      },\n    };\n\n    const textVariants = {\n      hidden: { opacity: 0, y: 50 },\n      visible: {\n        opacity: 1,\n        y: 0,\n        transition: { springTransition },\n      },\n    };\n\n    return (\n      <AnimatePresence>\n        <div\n          className={`relative mx-auto flex h-[200px] w-full max-w-[364px] justify-center ${className}`}\n        >\n          {currentStep === 0 && (\n            <>\n              <div className=\"absolute top-0 bottom-0 left-0 w-0\">\n                <motion.div\n                  animate=\"visible\"\n                  className=\"absolute h-[50px] w-[50px] rounded-full opacity-70\"\n                  exit=\"hidden\"\n                  initial=\"hidden\"\n                  style={{\n                    backgroundColor: circleColors[0],\n                    top: \"0%\",\n                    left: \"50px\",\n                    width: \"45px\",\n                    height: \"45px\",\n                  }}\n                  transition={{ ...springTransition, delay: 0.2 }}\n                  variants={circleVariants}\n                />\n                <motion.div\n                  animate=\"visible\"\n                  className=\"absolute h-[50px] w-[50px] rounded-full opacity-70\"\n                  exit=\"hidden\"\n                  initial=\"hidden\"\n                  style={{\n                    backgroundColor: circleColors[1],\n                    bottom: \"10%\",\n                    left: \"80px\",\n                    width: \"20px\",\n                    height: \"20px\",\n                  }}\n                  transition={{ ...springTransition, delay: 0.3 }}\n                  variants={circleVariants}\n                />\n              </div>\n              <div className=\"absolute top-0 right-0 bottom-0 w-0\">\n                <motion.div\n                  animate=\"visible\"\n                  className=\"absolute h-[50px] w-[50px] rounded-full opacity-70\"\n                  exit=\"hidden\"\n                  initial=\"hidden\"\n                  style={{\n                    backgroundColor: circleColors[2],\n                    top: \"45%\",\n                    right: \"19px\",\n                    width: \"30px\",\n                    height: \"30px\",\n                  }}\n                  transition={{ ...springTransition, delay: 0.4 }}\n                  variants={circleVariants}\n                />\n                <motion.div\n                  animate=\"visible\"\n                  className=\"absolute h-[50px] w-[50px] rounded-full opacity-70\"\n                  exit=\"hidden\"\n                  initial=\"hidden\"\n                  style={{\n                    backgroundColor: circleColors[3],\n                    bottom: \"65%\",\n                    right: \"75px\",\n                    width: \"10px\",\n                    height: \"10px\",\n                  }}\n                  transition={{ ...springTransition, delay: 0.5 }}\n                  variants={circleVariants}\n                />\n              </div>\n            </>\n          )}\n          {currentStep === 1 && (\n            <>\n              {/* New Background SVG for Step 3 */}\n              <motion.svg\n                animate=\"visible\"\n                className=\"h-full w-full\"\n                fill=\"none\"\n                height=\"636\"\n                initial=\"hidden\"\n                variants={backgroundVariants}\n                viewBox=\"0 0 904 636\"\n                width=\"904\"\n                xmlns=\"http://www.w3.org/2000/svg\"\n              >\n                <title>Background</title>\n\n                <path\n                  d=\"M0 606C0 622.569 13.4315 636 30 636H874C890.569 636 904 622.569 904 606V66H0V606Z\"\n                  fill=\"url(#paint0_linear_22_93)\"\n                />\n                <path d=\"M41.5 408H864.5\" stroke=\"#414141\" />\n                <path d=\"M41.5 302H864.5\" stroke=\"#414141\" />\n                <path d=\"M41.5 509H864.5\" stroke=\"#414141\" />\n                <ellipse\n                  className=\"fill-violet-300\"\n                  cx=\"86.6078\"\n                  cy=\"177.608\"\n                  rx=\"52.2014\"\n                  ry=\"52.2014\"\n                  transform=\"rotate(78.5154 86.6078 177.608)\"\n                />\n                <rect\n                  fill=\"#565656\"\n                  height=\"89\"\n                  rx=\"33\"\n                  width=\"366\"\n                  x=\"503\"\n                  y=\"136\"\n                />\n                <rect\n                  fill=\"#565656\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"117\"\n                  x=\"127\"\n                  y=\"332\"\n                />\n                <rect\n                  fill=\"#565656\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"117\"\n                  x=\"752\"\n                  y=\"332\"\n                />\n                <rect\n                  fill=\"#565656\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"117\"\n                  x=\"752\"\n                  y=\"436\"\n                />\n                <rect\n                  fill=\"#565656\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"117\"\n                  x=\"752\"\n                  y=\"535\"\n                />\n                <rect\n                  fill=\"#565656\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"117\"\n                  x=\"127\"\n                  y=\"436\"\n                />\n                <rect\n                  fill=\"#565656\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"117\"\n                  x=\"127\"\n                  y=\"535\"\n                />\n                <rect\n                  fill=\"#3F3F3F\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"51\"\n                  x=\"127\"\n                  y=\"359\"\n                />\n                <rect\n                  fill=\"#3F3F3F\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"51\"\n                  x=\"818\"\n                  y=\"359\"\n                />\n                <rect\n                  fill=\"#3F3F3F\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"51\"\n                  x=\"818\"\n                  y=\"463\"\n                />\n                <rect\n                  fill=\"#3F3F3F\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"51\"\n                  x=\"818\"\n                  y=\"562\"\n                />\n                <rect\n                  fill=\"#3F3F3F\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"51\"\n                  x=\"127\"\n                  y=\"463\"\n                />\n                <rect\n                  fill=\"#3F3F3F\"\n                  height=\"19\"\n                  rx=\"9.5\"\n                  width=\"51\"\n                  x=\"127\"\n                  y=\"562\"\n                />\n                <path\n                  d=\"M0 29C0 12.9837 12.9837 0 29 0H875C891.016 0 904 12.9837 904 29V67H0V29Z\"\n                  fill=\"#565656\"\n                />\n                <circle cx=\"41\" cy=\"35\" fill=\"#E54033\" r=\"15\" />\n                <circle cx=\"93\" cy=\"35\" fill=\"#FECA1A\" r=\"15\" />\n                <circle cx=\"145\" cy=\"35\" fill=\"#AFD803\" r=\"15\" />\n                <defs>\n                  <linearGradient\n                    gradientUnits=\"userSpaceOnUse\"\n                    id=\"paint0_linear_22_93\"\n                    x1=\"452\"\n                    x2=\"452\"\n                    y1=\"307\"\n                    y2=\"636\"\n                  >\n                    <stop stopColor=\"#373737\" />\n                    <stop offset=\"1\" stopColor=\"#2B2B2B\" />\n                  </linearGradient>\n                </defs>\n              </motion.svg>\n              <motion.div\n                animate=\"visible\"\n                className=\"absolute top-[48px] left-[62%] z-3 font-bold text-white text-xs\"\n                exit=\"hidden\"\n                initial=\"hidden\"\n                variants={textVariants}\n              >\n                Connected\n              </motion.div>\n            </>\n          )}\n          {currentStep === 2 && (\n            <>\n              {/* New Background SVG for Step 3 */}\n              <motion.svg\n                animate=\"step3\"\n                className=\"h-full w-[90%]\"\n                exit=\"hidden\"\n                fill=\"none\"\n                height=\"628\"\n                initial=\"hidden\"\n                transition={{ ...springTransition }}\n                variants={backgroundVariants}\n                viewBox=\"0 0 1149 628\"\n                width=\"1149\"\n                xmlns=\"http://www.w3.org/2000/svg\"\n              >\n                <title>Background</title>\n                <motion.g\n                  animate=\"visible\"\n                  initial=\"hidden\"\n                  variants={containerVariants}\n                >\n                  <AnimatedEllipse\n                    cx=\"283.316\"\n                    cy=\"42.4392\"\n                    fill=\"#F7931A\"\n                    filter=\"url(#filter0_b_41_39)\"\n                    rx=\"35.214\"\n                    ry=\"35.214\"\n                    transform=\"rotate(78.5154 283.316 42.4392)\"\n                  />\n                  <AnimatedEllipse\n                    cx=\"868.516\"\n                    cy=\"42.4392\"\n                    fill=\"#F7931A\"\n                    filter=\"url(#filter1_b_41_39)\"\n                    rx=\"35.214\"\n                    ry=\"35.214\"\n                    transform=\"rotate(78.5154 868.516 42.4392)\"\n                  />\n                  <AnimatedEllipse\n                    cx=\"283.316\"\n                    cy=\"585.777\"\n                    fill=\"#2775CA\"\n                    filter=\"url(#filter2_b_41_39)\"\n                    rx=\"35.214\"\n                    ry=\"35.214\"\n                    transform=\"rotate(78.5154 283.316 585.777)\"\n                  />\n                  <AnimatedEllipse\n                    cx=\"212.674\"\n                    cy=\"298.845\"\n                    fill=\"#E54033\"\n                    filter=\"url(#filter3_b_41_39)\"\n                    rx=\"35.214\"\n                    ry=\"35.214\"\n                    transform=\"rotate(78.5154 212.674 298.845)\"\n                  />\n                  <AnimatedEllipse\n                    cx=\"936.542\"\n                    cy=\"297.973\"\n                    fill=\"#24DCB3\"\n                    filter=\"url(#filter4_b_41_39)\"\n                    rx=\"35.214\"\n                    ry=\"35.214\"\n                    transform=\"rotate(-101.485 936.542 297.973)\"\n                  />\n                  <AnimatedEllipse\n                    cx=\"41.7361\"\n                    cy=\"121.803\"\n                    fill=\"#5B48AD\"\n                    filter=\"url(#filter5_b_41_39)\"\n                    rx=\"35.214\"\n                    ry=\"35.214\"\n                    transform=\"rotate(78.5154 41.7361 121.803)\"\n                  />\n                  <AnimatedEllipse\n                    cx=\"1107.48\"\n                    cy=\"475.016\"\n                    fill=\"#2775CA\"\n                    filter=\"url(#filter6_b_41_39)\"\n                    rx=\"35.214\"\n                    ry=\"35.214\"\n                    transform=\"rotate(-101.485 1107.48 475.016)\"\n                  />\n                  <AnimatedEllipse\n                    cx=\"41.7361\"\n                    cy=\"456.701\"\n                    fill=\"#00FFA3\"\n                    filter=\"url(#filter7_b_41_39)\"\n                    rx=\"35.214\"\n                    ry=\"35.214\"\n                    transform=\"rotate(78.5154 41.7361 456.701)\"\n                  />\n                  <AnimatedEllipse\n                    cx=\"1107.48\"\n                    cy=\"140.118\"\n                    fill=\"#E54033\"\n                    filter=\"url(#filter8_b_41_39)\"\n                    rx=\"35.214\"\n                    ry=\"35.214\"\n                    transform=\"rotate(-101.485 1107.48 140.118)\"\n                  />\n                  <AnimatedEllipse\n                    cx=\"868.516\"\n                    cy=\"585.777\"\n                    fill=\"#F5AC37\"\n                    filter=\"url(#filter9_b_41_39)\"\n                    rx=\"35.214\"\n                    ry=\"35.214\"\n                    transform=\"rotate(78.5154 868.516 585.777)\"\n                  />\n                </motion.g>\n                <path\n                  className=\"stroke-primary\"\n                  d=\"M387.807 132.425L328.492 81M762.449 132.425L827.433 81M803.882 301.515H874.536M275.283 301.515H346.374M387.807 498.498L328.492 546M762.449 498.498L827.433 546M86 161.623L172.791 258.371M86 427.898L172.791 333.329M1066 179.491L980.953 258.371M1066 427.898L980.953 333.329\"\n                  strokeLinecap=\"round\"\n                  strokeWidth=\"11\"\n                />\n                <path\n                  className=\"fill-secondary\"\n                  d=\"M575.386 521.581C397.87 521.581 370.871 486.991 370.871 317.066C370.871 147.142 399.717 112.552 575.386 112.552C751.055 112.552 779.901 151.118 779.901 317.066C779.9 483.014 752.902 521.581 575.386 521.581Z\"\n                />\n                <defs>\n                  <filter\n                    colorInterpolationFilters=\"sRGB\"\n                    filterUnits=\"userSpaceOnUse\"\n                    height=\"178.442\"\n                    id=\"filter0_b_41_39\"\n                    width=\"178.442\"\n                    x=\"194.095\"\n                    y=\"-46.7817\"\n                  >\n                    <feFlood floodOpacity=\"0\" result=\"BackgroundImageFix\" />\n                    <feGaussianBlur in=\"BackgroundImageFix\" stdDeviation=\"27\" />\n                    <feComposite\n                      in2=\"SourceAlpha\"\n                      operator=\"in\"\n                      result=\"effect1_backgroundBlur_41_39\"\n                    />\n                    <feBlend\n                      in=\"SourceGraphic\"\n                      in2=\"effect1_backgroundBlur_41_39\"\n                      mode=\"normal\"\n                      result=\"shape\"\n                    />\n                  </filter>\n                  <filter\n                    colorInterpolationFilters=\"sRGB\"\n                    filterUnits=\"userSpaceOnUse\"\n                    height=\"178.442\"\n                    id=\"filter1_b_41_39\"\n                    width=\"178.442\"\n                    x=\"779.295\"\n                    y=\"-46.7817\"\n                  >\n                    <feFlood floodOpacity=\"0\" result=\"BackgroundImageFix\" />\n                    <feGaussianBlur in=\"BackgroundImageFix\" stdDeviation=\"27\" />\n                    <feComposite\n                      in2=\"SourceAlpha\"\n                      operator=\"in\"\n                      result=\"effect1_backgroundBlur_41_39\"\n                    />\n                    <feBlend\n                      in=\"SourceGraphic\"\n                      in2=\"effect1_backgroundBlur_41_39\"\n                      mode=\"normal\"\n                      result=\"shape\"\n                    />\n                  </filter>\n                  <filter\n                    colorInterpolationFilters=\"sRGB\"\n                    filterUnits=\"userSpaceOnUse\"\n                    height=\"178.442\"\n                    id=\"filter2_b_41_39\"\n                    width=\"178.442\"\n                    x=\"194.095\"\n                    y=\"496.556\"\n                  >\n                    <feFlood floodOpacity=\"0\" result=\"BackgroundImageFix\" />\n                    <feGaussianBlur in=\"BackgroundImageFix\" stdDeviation=\"27\" />\n                    <feComposite\n                      in2=\"SourceAlpha\"\n                      operator=\"in\"\n                      result=\"effect1_backgroundBlur_41_39\"\n                    />\n                    <feBlend\n                      in=\"SourceGraphic\"\n                      in2=\"effect1_backgroundBlur_41_39\"\n                      mode=\"normal\"\n                      result=\"shape\"\n                    />\n                  </filter>\n                  <filter\n                    colorInterpolationFilters=\"sRGB\"\n                    filterUnits=\"userSpaceOnUse\"\n                    height=\"178.442\"\n                    id=\"filter3_b_41_39\"\n                    width=\"178.442\"\n                    x=\"123.453\"\n                    y=\"209.625\"\n                  >\n                    <feFlood floodOpacity=\"0\" result=\"BackgroundImageFix\" />\n                    <feGaussianBlur in=\"BackgroundImageFix\" stdDeviation=\"27\" />\n                    <feComposite\n                      in2=\"SourceAlpha\"\n                      operator=\"in\"\n                      result=\"effect1_backgroundBlur_41_39\"\n                    />\n                    <feBlend\n                      in=\"SourceGraphic\"\n                      in2=\"effect1_backgroundBlur_41_39\"\n                      mode=\"normal\"\n                      result=\"shape\"\n                    />\n                  </filter>\n                  <filter\n                    colorInterpolationFilters=\"sRGB\"\n                    filterUnits=\"userSpaceOnUse\"\n                    height=\"178.442\"\n                    id=\"filter4_b_41_39\"\n                    width=\"178.442\"\n                    x=\"847.321\"\n                    y=\"208.752\"\n                  >\n                    <feFlood floodOpacity=\"0\" result=\"BackgroundImageFix\" />\n                    <feGaussianBlur in=\"BackgroundImageFix\" stdDeviation=\"27\" />\n                    <feComposite\n                      in2=\"SourceAlpha\"\n                      operator=\"in\"\n                      result=\"effect1_backgroundBlur_41_39\"\n                    />\n                    <feBlend\n                      in=\"SourceGraphic\"\n                      in2=\"effect1_backgroundBlur_41_39\"\n                      mode=\"normal\"\n                      result=\"shape\"\n                    />\n                  </filter>\n                  <filter\n                    colorInterpolationFilters=\"sRGB\"\n                    filterUnits=\"userSpaceOnUse\"\n                    height=\"178.442\"\n                    id=\"filter5_b_41_39\"\n                    width=\"178.442\"\n                    x=\"-47.4848\"\n                    y=\"32.582\"\n                  >\n                    <feFlood floodOpacity=\"0\" result=\"BackgroundImageFix\" />\n                    <feGaussianBlur in=\"BackgroundImageFix\" stdDeviation=\"27\" />\n                    <feComposite\n                      in2=\"SourceAlpha\"\n                      operator=\"in\"\n                      result=\"effect1_backgroundBlur_41_39\"\n                    />\n                    <feBlend\n                      in=\"SourceGraphic\"\n                      in2=\"effect1_backgroundBlur_41_39\"\n                      mode=\"normal\"\n                      result=\"shape\"\n                    />\n                  </filter>\n                  <filter\n                    colorInterpolationFilters=\"sRGB\"\n                    filterUnits=\"userSpaceOnUse\"\n                    height=\"178.442\"\n                    id=\"filter6_b_41_39\"\n                    width=\"178.442\"\n                    x=\"1018.26\"\n                    y=\"385.795\"\n                  >\n                    <feFlood floodOpacity=\"0\" result=\"BackgroundImageFix\" />\n                    <feGaussianBlur in=\"BackgroundImageFix\" stdDeviation=\"27\" />\n                    <feComposite\n                      in2=\"SourceAlpha\"\n                      operator=\"in\"\n                      result=\"effect1_backgroundBlur_41_39\"\n                    />\n                    <feBlend\n                      in=\"SourceGraphic\"\n                      in2=\"effect1_backgroundBlur_41_39\"\n                      mode=\"normal\"\n                      result=\"shape\"\n                    />\n                  </filter>\n                  <filter\n                    colorInterpolationFilters=\"sRGB\"\n                    filterUnits=\"userSpaceOnUse\"\n                    height=\"178.442\"\n                    id=\"filter7_b_41_39\"\n                    width=\"178.442\"\n                    x=\"-47.4848\"\n                    y=\"367.48\"\n                  >\n                    <feFlood floodOpacity=\"0\" result=\"BackgroundImageFix\" />\n                    <feGaussianBlur in=\"BackgroundImageFix\" stdDeviation=\"27\" />\n                    <feComposite\n                      in2=\"SourceAlpha\"\n                      operator=\"in\"\n                      result=\"effect1_backgroundBlur_41_39\"\n                    />\n                    <feBlend\n                      in=\"SourceGraphic\"\n                      in2=\"effect1_backgroundBlur_41_39\"\n                      mode=\"normal\"\n                      result=\"shape\"\n                    />\n                  </filter>\n                  <filter\n                    colorInterpolationFilters=\"sRGB\"\n                    filterUnits=\"userSpaceOnUse\"\n                    height=\"178.442\"\n                    id=\"filter8_b_41_39\"\n                    width=\"178.442\"\n                    x=\"1018.26\"\n                    y=\"50.897\"\n                  >\n                    <feFlood floodOpacity=\"0\" result=\"BackgroundImageFix\" />\n                    <feGaussianBlur in=\"BackgroundImageFix\" stdDeviation=\"27\" />\n                    <feComposite\n                      in2=\"SourceAlpha\"\n                      operator=\"in\"\n                      result=\"effect1_backgroundBlur_41_39\"\n                    />\n                    <feBlend\n                      in=\"SourceGraphic\"\n                      in2=\"effect1_backgroundBlur_41_39\"\n                      mode=\"normal\"\n                      result=\"shape\"\n                    />\n                  </filter>\n                  <filter\n                    colorInterpolationFilters=\"sRGB\"\n                    filterUnits=\"userSpaceOnUse\"\n                    height=\"178.442\"\n                    id=\"filter9_b_41_39\"\n                    width=\"178.442\"\n                    x=\"779.295\"\n                    y=\"496.556\"\n                  >\n                    <feFlood floodOpacity=\"0\" result=\"BackgroundImageFix\" />\n                    <feGaussianBlur in=\"BackgroundImageFix\" stdDeviation=\"27\" />\n                    <feComposite\n                      in2=\"SourceAlpha\"\n                      operator=\"in\"\n                      result=\"effect1_backgroundBlur_41_39\"\n                    />\n                    <feBlend\n                      in=\"SourceGraphic\"\n                      in2=\"effect1_backgroundBlur_41_39\"\n                      mode=\"normal\"\n                      result=\"shape\"\n                    />\n                  </filter>\n                </defs>\n              </motion.svg>\n            </>\n          )}\n          <motion.svg\n            animate={getStepName(currentStep)}\n            className=\"absolute top-[30%] z-1 h-auto w-[100px]\"\n            fill=\"none\"\n            height=\"286\"\n            initial=\"initial\"\n            variants={svgVariants}\n            viewBox=\"0 0 364 286\"\n            width=\"364\"\n            xmlns=\"http://www.w3.org/2000/svg\"\n          >\n            <title>btc</title>\n            <path\n              className=\"fill-foreground\"\n              clipRule=\"evenodd\"\n              d=\"M57.3313 4.76639e-05C25.8291 -0.0402403 0.258863 25.4646 0.218576 56.9668L4.76637e-05 227.84C-0.0402403 259.342 25.4647 284.912 56.9669 284.952L305.892 285.271C337.394 285.311 362.964 259.806 363.004 228.304L363.223 57.4311C363.263 25.9289 337.758 0.358684 306.256 0.318396L57.3313 4.76639e-05ZM61.4111 10.1439C59.1431 10.1439 56.9108 10.2917 54.723 10.578C53.6232 10.722 52.6149 9.94706 52.4709 8.84721C52.327 7.74735 53.1019 6.73906 54.2018 6.59512C56.5619 6.28624 58.9683 6.127 61.4111 6.127H69.9687C71.0779 6.127 71.9771 7.02621 71.9771 8.13544C71.9771 9.24467 71.0779 10.1439 69.9687 10.1439H61.4111ZM85.0754 8.13544C85.0754 7.02621 85.9746 6.127 87.0839 6.127H104.199C105.308 6.127 106.207 7.02621 106.207 8.13544C106.207 9.24467 105.308 10.1439 104.199 10.1439H87.0839C85.9746 10.1439 85.0754 9.24467 85.0754 8.13544ZM119.306 8.13544C119.306 7.02621 120.205 6.127 121.314 6.127H138.429C139.539 6.127 140.438 7.02621 140.438 8.13544C140.438 9.24467 139.539 10.1439 138.429 10.1439H121.314C120.205 10.1439 119.306 9.24467 119.306 8.13544ZM153.536 8.13544C153.536 7.02621 154.435 6.127 155.545 6.127H172.66C173.769 6.127 174.668 7.02621 174.668 8.13544C174.668 9.24467 173.769 10.1439 172.66 10.1439H155.545C154.435 10.1439 153.536 9.24467 153.536 8.13544ZM187.766 8.13544C187.766 7.02621 188.666 6.127 189.775 6.127H206.89C207.999 6.127 208.899 7.02621 208.899 8.13544C208.899 9.24467 207.999 10.1439 206.89 10.1439H189.775C188.666 10.1439 187.766 9.24467 187.766 8.13544ZM221.997 8.13544C221.997 7.02621 222.896 6.127 224.005 6.127H241.12C242.23 6.127 243.129 7.02621 243.129 8.13544C243.129 9.24467 242.23 10.1439 241.12 10.1439H224.005C222.896 10.1439 221.997 9.24467 221.997 8.13544ZM256.227 8.13544C256.227 7.02621 257.126 6.127 258.236 6.127H275.351C276.46 6.127 277.359 7.02621 277.359 8.13544C277.359 9.24467 276.46 10.1439 275.351 10.1439H258.236C257.126 10.1439 256.227 9.24467 256.227 8.13544ZM290.458 8.13544C290.458 7.02621 291.357 6.127 292.466 6.127H301.024C303.449 6.127 305.839 6.28411 308.184 6.58896C309.284 6.73197 310.06 7.73961 309.917 8.83958C309.774 9.93956 308.766 10.7153 307.666 10.5723C305.493 10.2897 303.276 10.1439 301.024 10.1439H292.466C291.357 10.1439 290.458 9.24467 290.458 8.13544ZM319.398 11.3652C319.822 10.34 320.996 9.85228 322.021 10.2758C326.484 12.1191 330.65 14.5319 334.43 17.4232C335.311 18.0971 335.479 19.3576 334.805 20.2387C334.131 21.1197 332.87 21.2876 331.989 20.6137C328.484 17.9325 324.622 15.6963 320.488 13.9884C319.463 13.5648 318.975 12.3904 319.398 11.3652ZM42.9034 11.4139C43.3296 12.4379 42.845 13.6137 41.821 14.0399C37.6628 15.7708 33.7823 18.0366 30.2655 20.7516C29.3875 21.4295 28.1262 21.2672 27.4483 20.3892C26.7705 19.5112 26.9328 18.2499 27.8108 17.572C31.6032 14.6442 35.7894 12.1996 40.2773 10.3315C41.3014 9.90522 42.4771 10.3898 42.9034 11.4139ZM341.762 27.1594C342.64 26.4808 343.901 26.642 344.58 27.5194C347.491 31.2838 349.926 35.4372 351.793 39.8893C352.222 40.9122 351.741 42.0892 350.718 42.5182C349.695 42.9472 348.518 42.4657 348.089 41.4428C346.359 37.3177 344.102 33.4677 341.402 29.9769C340.724 29.0994 340.885 27.838 341.762 27.1594ZM20.4613 27.4136C21.3429 28.0868 21.5119 29.3472 20.8388 30.2288C18.1425 33.7601 15.8975 37.6525 14.1888 41.8199C13.768 42.8463 12.5949 43.3371 11.5686 42.9163C10.5423 42.4955 10.0514 41.3224 10.4722 40.2961C12.3164 35.7982 14.7386 31.5991 17.6461 27.7911C18.3193 26.9095 19.5797 26.7405 20.4613 27.4136ZM353.294 51.9859C354.393 51.837 355.405 52.6074 355.554 53.7066C355.871 56.0498 356.041 58.4391 356.054 60.8648L356.097 68.9791C356.103 70.0883 355.209 70.9923 354.1 70.9982C352.991 71.0042 352.087 70.1097 352.081 69.0005L352.037 60.8862C352.025 58.6341 351.868 56.4177 351.573 54.2457C351.425 53.1465 352.195 52.1348 353.294 51.9859ZM9.053 52.4975C10.1536 52.6355 10.9339 53.6397 10.7958 54.7403C10.5212 56.9295 10.3853 59.1626 10.3974 61.4306L10.4406 69.5449C10.4466 70.6541 9.55215 71.5581 8.44294 71.564C7.33372 71.5699 6.42972 70.6755 6.42381 69.5663L6.38052 61.452C6.36749 59.0093 6.51389 56.602 6.81017 54.2403C6.94824 53.1397 7.95239 52.3594 9.053 52.4975ZM354.165 83.21C355.274 83.2041 356.178 84.0985 356.184 85.2077L356.271 101.436C356.277 102.545 355.382 103.449 354.273 103.455C353.164 103.461 352.26 102.567 352.254 101.458L352.167 85.2291C352.161 84.1199 353.056 83.2159 354.165 83.21ZM8.50808 83.7758C9.6173 83.7698 10.5213 84.6642 10.5272 85.7735L10.6138 102.002C10.6197 103.111 9.7253 104.015 8.61608 104.021C7.50686 104.027 6.60287 103.133 6.59695 102.023L6.51038 85.7949C6.50446 84.6857 7.39886 83.7817 8.50808 83.7758ZM354.338 115.667C355.447 115.661 356.351 116.556 356.357 117.665L356.444 133.893C356.45 135.003 355.555 135.907 354.446 135.913C353.337 135.918 352.433 135.024 352.427 133.915L352.34 117.686C352.334 116.577 353.229 115.673 354.338 115.667ZM8.68123 116.233C9.79044 116.227 10.6944 117.121 10.7004 118.231L10.7869 134.459C10.7928 135.568 9.89845 136.472 8.78923 136.478C7.68001 136.484 6.77602 135.59 6.7701 134.481L6.68352 118.252C6.67761 117.143 7.57201 116.239 8.68123 116.233ZM354.511 148.124C355.62 148.118 356.524 149.013 356.53 150.122L356.617 166.351C356.623 167.46 355.728 168.364 354.619 168.37C353.51 168.376 352.606 167.481 352.6 166.372L352.513 150.143C352.508 149.034 353.402 148.13 354.511 148.124ZM8.85437 148.69C9.96359 148.684 10.8676 149.579 10.8735 150.688L10.9601 166.916C10.966 168.026 10.0716 168.93 8.96237 168.936C7.85316 168.941 6.94916 168.047 6.94324 166.938L6.85667 150.709C6.85075 149.6 7.74516 148.696 8.85437 148.69ZM354.684 180.582C355.794 180.576 356.698 181.47 356.703 182.579L356.79 198.808C356.796 199.917 355.902 200.821 354.792 200.827C353.683 200.833 352.779 199.938 352.773 198.829L352.687 182.601C352.681 181.491 353.575 180.587 354.684 180.582ZM9.02752 181.147C10.1367 181.141 11.0407 182.036 11.0467 183.145L11.1332 199.374C11.1391 200.483 10.2447 201.387 9.13552 201.393C8.0263 201.399 7.12231 200.504 7.11639 199.395L7.02982 183.166C7.0239 182.057 7.9183 181.153 9.02752 181.147ZM354.857 213.039C355.967 213.033 356.871 213.927 356.877 215.036L356.92 223.151C356.933 225.593 356.786 228.001 356.49 230.362C356.352 231.463 355.348 232.243 354.247 232.105C353.147 231.967 352.366 230.963 352.505 229.862C352.779 227.673 352.915 225.44 352.903 223.172L352.86 215.058C352.854 213.949 353.748 213.045 354.857 213.039ZM9.20067 213.604C10.3099 213.599 11.2139 214.493 11.2198 215.602L11.2631 223.716C11.2751 225.969 11.4328 228.185 11.727 230.357C11.8758 231.456 11.1054 232.468 10.0062 232.617C8.90705 232.766 7.89528 231.995 7.74641 230.896C7.42905 228.553 7.25919 226.164 7.24625 223.738L7.20296 215.624C7.19705 214.514 8.09145 213.61 9.20067 213.604ZM351.732 241.686C352.758 242.107 353.249 243.28 352.828 244.307C350.984 248.804 348.562 253.004 345.654 256.812C344.981 257.693 343.721 257.862 342.839 257.189C341.957 256.516 341.788 255.255 342.462 254.374C345.158 250.843 347.403 246.95 349.112 242.783C349.532 241.756 350.705 241.266 351.732 241.686ZM12.5824 242.084C13.6054 241.655 14.7824 242.137 15.2114 243.16C16.9413 247.285 19.1981 251.135 21.8979 254.626C22.5766 255.503 22.4154 256.765 21.5379 257.443C20.6605 258.122 19.3991 257.961 18.7205 257.083C15.8091 253.319 13.3741 249.166 11.507 244.713C11.078 243.69 11.5595 242.513 12.5824 242.084ZM335.852 264.213C336.53 265.092 336.368 266.353 335.49 267.031C331.697 269.958 327.511 272.403 323.023 274.271C321.999 274.697 320.823 274.213 320.397 273.189C319.971 272.165 320.455 270.989 321.479 270.563C325.638 268.832 329.518 266.566 333.035 263.851C333.913 263.173 335.174 263.335 335.852 264.213ZM28.4957 264.364C29.1696 263.483 30.4302 263.315 31.3112 263.989C34.8164 266.67 38.6784 268.906 42.8127 270.614C43.8379 271.038 44.3256 272.212 43.9021 273.237C43.4786 274.263 42.3042 274.75 41.279 274.327C36.8169 272.484 32.6506 270.071 28.8707 267.18C27.9897 266.506 27.8218 265.245 28.4957 264.364ZM310.829 275.755C310.973 276.855 310.198 277.864 309.099 278.008C306.738 278.316 304.332 278.476 301.889 278.476H293.332C292.222 278.476 291.323 277.576 291.323 276.467C291.323 275.358 292.222 274.459 293.332 274.459H301.889C304.157 274.459 306.39 274.311 308.577 274.025C309.677 273.881 310.685 274.656 310.829 275.755ZM53.3834 275.763C53.5264 274.663 54.534 273.887 55.634 274.03C57.8075 274.313 60.0248 274.459 62.2769 274.459H70.8345C71.9437 274.459 72.8429 275.358 72.8429 276.467C72.8429 277.576 71.9437 278.476 70.8345 278.476H62.2769C59.8511 278.476 57.4609 278.319 55.1161 278.014C54.0161 277.871 53.2403 276.863 53.3834 275.763ZM85.9412 276.467C85.9412 275.358 86.8404 274.459 87.9497 274.459H105.065C106.174 274.459 107.073 275.358 107.073 276.467C107.073 277.576 106.174 278.476 105.065 278.476H87.9497C86.8404 278.476 85.9412 277.576 85.9412 276.467ZM120.172 276.467C120.172 275.358 121.071 274.459 122.18 274.459H139.295C140.404 274.459 141.304 275.358 141.304 276.467C141.304 277.576 140.404 278.476 139.295 278.476H122.18C121.071 278.476 120.172 277.576 120.172 276.467ZM154.402 276.467C154.402 275.358 155.301 274.459 156.41 274.459H173.526C174.635 274.459 175.534 275.358 175.534 276.467C175.534 277.576 174.635 278.476 173.526 278.476H156.41C155.301 278.476 154.402 277.576 154.402 276.467ZM188.632 276.467C188.632 275.358 189.531 274.459 190.641 274.459H207.756C208.865 274.459 209.764 275.358 209.764 276.467C209.764 277.576 208.865 278.476 207.756 278.476H190.641C189.531 278.476 188.632 277.576 188.632 276.467ZM222.863 276.467C222.863 275.358 223.762 274.459 224.871 274.459H241.986C243.095 274.459 243.995 275.358 243.995 276.467C243.995 277.576 243.095 278.476 241.986 278.476H224.871C223.762 278.476 222.863 277.576 222.863 276.467ZM257.093 276.467C257.093 275.358 257.992 274.459 259.101 274.459H276.217C277.326 274.459 278.225 275.358 278.225 276.467C278.225 277.576 277.326 278.476 276.217 278.476H259.101C257.992 278.476 257.093 277.576 257.093 276.467ZM57.692 28.6475C46.0599 28.6475 36.6303 38.0771 36.6303 49.7092C36.6303 61.3412 46.0599 70.7709 57.692 70.7709L105.447 70.7709C113.852 70.7709 121.345 76.2202 128.777 81.6251C133.114 84.7793 137.43 87.9182 141.894 89.9503C144.55 91.1592 147.501 91.8326 150.61 91.8326H212.556C215.664 91.8326 218.616 91.1592 221.272 89.9503C225.736 87.9182 230.052 84.7793 234.389 81.6251C241.821 76.2202 249.313 70.7709 257.719 70.7709L305.477 70.7709C317.109 70.7709 326.538 61.3412 326.538 49.7092C326.538 38.0771 317.109 28.6475 305.477 28.6475H57.692Z\"\n              fillRule=\"evenodd\"\n            />\n          </motion.svg>\n          <motion.svg\n            animate={getBtcStepName(currentStep)}\n            className=\"-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 z-2 h-[66px] w-[66px]\"\n            exit=\"hidden\"\n            fill=\"none\"\n            height=\"124\"\n            initial=\"hidden\"\n            variants={tokenVariants}\n            viewBox=\"0 0 124 124\"\n            width=\"124\"\n            xmlns=\"http://www.w3.org/2000/svg\"\n          >\n            <title>btc</title>\n            <path\n              d=\"M61.667 123.334C95.7248 123.334 123.334 95.7248 123.334 61.667C123.334 27.6093 95.7248 0 61.667 0C27.6093 0 0 27.6093 0 61.667C0 95.7248 27.6093 123.334 61.667 123.334Z\"\n              fill=\"#F7931A\"\n            />\n            <path\n              d=\"M89.3756 54.0351C90.5858 45.9567 84.4307 41.6131 76.0208 38.7147L78.7496 27.7688L72.0895 26.1115L69.4302 36.7683C67.6804 36.329 65.8843 35.9204 64.0921 35.5119L66.7708 24.7857L60.1107 23.1245L57.382 34.0666C55.9328 33.7351 54.5067 33.4113 53.1269 33.0645L53.1346 33.0298L43.9463 30.7365L42.1733 37.8514C42.1733 37.8514 47.1183 38.9845 47.0142 39.0539C49.7121 39.7284 50.1978 41.5128 50.1168 42.9312L47.0103 55.3995C47.1953 55.4457 47.4343 55.5151 47.7041 55.6192L46.9988 55.4457L42.6435 72.9129C42.3121 73.73 41.4757 74.9595 39.5872 74.4931C39.6566 74.5895 34.7463 73.2868 34.7463 73.2868L31.4394 80.9104L40.1113 83.0726C41.7224 83.4772 43.3026 83.9012 44.8558 84.2982L42.1001 95.3674L48.7563 97.0247L51.4851 86.0788C53.3042 86.5683 55.0694 87.0231 56.7961 87.4548L54.0751 98.3544L60.7351 100.012L63.4908 88.9656C74.853 91.1162 83.3939 90.249 86.9898 79.9738C89.8882 71.7027 86.8472 66.9274 80.8694 63.817C85.2246 62.8149 88.5007 59.9513 89.3756 54.0351V54.0351ZM74.1515 75.3796C72.0973 83.6545 58.1644 79.1798 53.6473 78.0583L57.3087 63.3931C61.8258 64.5223 76.306 66.7539 74.1515 75.3796ZM76.2135 53.9156C74.3365 61.4428 62.7431 57.6156 58.9853 56.6791L62.2999 43.3821C66.0577 44.3187 78.1715 46.0646 76.2135 53.9156Z\"\n              fill=\"white\"\n            />\n          </motion.svg>\n          <motion.svg\n            animate={getEthStepName(currentStep)}\n            className=\"-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 z-2 h-[66px] w-[66px]\"\n            exit=\"hidden\"\n            fill=\"none\"\n            height=\"100\"\n            initial=\"hidden\"\n            variants={tokenVariants}\n            viewBox=\"0 0 100 100\"\n            width=\"100\"\n            xmlns=\"http://www.w3.org/2000/svg\"\n          >\n            <title>eth</title>\n            <path\n              d=\"M49.667 99.334C77.0973 99.334 99.334 77.0973 99.334 49.667C99.334 22.2367 77.0973 0 49.667 0C22.2367 0 0 22.2367 0 49.667C0 77.0973 22.2367 99.334 49.667 99.334Z\"\n              fill=\"#627EEA\"\n            />\n            <path\n              d=\"M51.2143 12.4194V39.9536L74.4864 50.3526L51.2143 12.4194Z\"\n              fill=\"white\"\n              fillOpacity=\"0.602\"\n            />\n            <path\n              d=\"M51.213 12.4189L27.9378 50.3521L51.213 39.9531V12.4189Z\"\n              fill=\"white\"\n            />\n            <path\n              d=\"M51.2143 68.194V86.9029L74.5019 54.6846L51.2143 68.194Z\"\n              fill=\"white\"\n              fillOpacity=\"0.602\"\n            />\n            <path\n              d=\"M51.2136 86.9029V68.1909L27.9384 54.6846L51.2136 86.9029Z\"\n              fill=\"white\"\n            />\n            <path\n              d=\"M51.2143 63.8653L74.4864 50.3528L51.2143 39.96V63.8653Z\"\n              fill=\"white\"\n              fillOpacity=\"0.2\"\n            />\n            <path\n              d=\"M27.9384 50.3528L51.2136 63.8653V39.96L27.9384 50.3528Z\"\n              fill=\"white\"\n              fillOpacity=\"0.602\"\n            />\n          </motion.svg>\n          <motion.svg\n            animate={getSolStepName(currentStep)}\n            className=\"-translate-x-1/2 -translate-y-1/2 absolute top-1/2 left-1/2 z-2 h-[66px] w-[66px]\"\n            exit=\"hidden\"\n            fill=\"none\"\n            height=\"121\"\n            initial=\"hidden\"\n            variants={tokenVariants}\n            viewBox=\"0 0 121 121\"\n            width=\"121\"\n            xmlns=\"http://www.w3.org/2000/svg\"\n          >\n            <title>solana</title>\n            <path\n              d=\"M60.3375 120.675C93.7747 120.675 120.675 93.7748 120.675 61.667C120.675 27.6093 93.7747 0 60.3375 0C27.6093 0 -6.10352e-05 27.6093 -6.10352e-05 61.667C-6.10352e-05 95.7248 27.6093 123.334 60.3375 123.334Z\"\n              fill=\"currentColor\"\n            />\n            <path\n              d=\"M120.175 60.3375C120.175 93.4987 93.4986 120.175 60.3375 120.175C27.1764 120.175 0.499939 93.4987 0.499939 60.3375C0.499939 27.1764 27.1764 0.5 60.3375 0.5C93.4986 0.5 120.175 27.1764 120.175 60.3375Z\"\n              stroke=\"url(#paint0_linear_23_285)\"\n              strokeOpacity=\"0.39\"\n            />\n            <mask\n              height=\"121\"\n              id=\"mask0_23_285\"\n              maskUnits=\"userSpaceOnUse\"\n              style={{ maskType: \"alpha\" }}\n              width=\"121\"\n              x=\"0\"\n              y=\"0\"\n            >\n              <path\n                d=\"M60.3375 120.675C93.7748 120.675 120.675 93.7748 120.675 60.3375C120.675 26.9003 93.7748 0 60.3375 0C26.9003 0 0 26.9003 0 60.3375C0 93.7748 26.9003 120.675 60.3375 120.675Z\"\n                fill=\"#2775CA\"\n              />\n            </mask>\n            <g mask=\"url(#mask0_23_285)\">\n              <g filter=\"url(#filter0_f_23_285)\">\n                <path\n                  d=\"M95.6854 12.6533C29.4265 4.70227 14.6287 67.2065 15.5121 99.4525C3.8065 82.8878 -11.7862 43.1324 19.488 16.6289C50.7622 -9.87467 83.3171 2.93538 95.6854 12.6533Z\"\n                  fill=\"white\"\n                  fillOpacity=\"0.6\"\n                />\n              </g>\n            </g>\n            <path\n              d=\"M35.0649 75.7085C35.5167 75.2567 36.1379 74.9932 36.7968 74.9932H96.5466C97.6385 74.9932 98.1844 76.3109 97.4126 77.0827L85.6094 88.8859C85.1576 89.3377 84.5364 89.6012 83.8775 89.6012H24.1277C23.0358 89.6012 22.4899 88.2835 23.2617 87.5117L35.0649 75.7085Z\"\n              fill=\"url(#paint1_linear_23_285)\"\n            />\n            <path\n              d=\"M35.0649 31.6392C35.5355 31.1874 36.1567 30.9238 36.7968 30.9238L96.5466 30.9238C97.6385 30.9238 98.1844 32.2416 97.4126 33.0134L85.6094 44.8165C85.1576 45.2683 84.5364 45.5318 83.8775 45.5318L24.1277 45.5318C23.0358 45.5318 22.4899 44.2141 23.2617 43.4423L35.0649 31.6392Z\"\n              fill=\"url(#paint2_linear_23_285)\"\n            />\n            <path\n              d=\"M85.6094 53.5327C85.1576 53.0809 84.5364 52.8174 83.8775 52.8174L24.1277 52.8174C23.0358 52.8174 22.4899 54.1351 23.2617 54.9069L35.0649 66.7101C35.5167 67.1619 36.1379 67.4254 36.7968 67.4254H96.5466C97.6385 67.4254 98.1844 66.1077 97.4126 65.3359L85.6094 53.5327Z\"\n              fill=\"url(#paint3_linear_23_285)\"\n            />\n            <defs>\n              <filter\n                colorInterpolationFilters=\"sRGB\"\n                filterUnits=\"userSpaceOnUse\"\n                height=\"186.588\"\n                id=\"filter0_f_23_285\"\n                width=\"182.583\"\n                x=\"-42.8977\"\n                y=\"-43.1353\"\n              >\n                <feFlood floodOpacity=\"0\" result=\"BackgroundImageFix\" />\n                <feBlend\n                  in=\"SourceGraphic\"\n                  in2=\"BackgroundImageFix\"\n                  mode=\"normal\"\n                  result=\"shape\"\n                />\n                <feGaussianBlur\n                  result=\"effect1_foregroundBlur_23_285\"\n                  stdDeviation=\"22\"\n                />\n              </filter>\n              <linearGradient\n                gradientUnits=\"userSpaceOnUse\"\n                id=\"paint0_linear_23_285\"\n                x1=\"31.2659\"\n                x2=\"96.5405\"\n                y1=\"8.77641\"\n                y2=\"120.676\"\n              >\n                <stop stopColor=\"#24DCB3\" />\n                <stop offset=\"1\" stopColor=\"#D428FC\" />\n              </linearGradient>\n              <linearGradient\n                gradientUnits=\"userSpaceOnUse\"\n                id=\"paint1_linear_23_285\"\n                x1=\"90.8388\"\n                x2=\"49.4869\"\n                y1=\"23.8733\"\n                y2=\"103.079\"\n              >\n                <stop stopColor=\"#00FFA3\" />\n                <stop offset=\"1\" stopColor=\"#DC1FFF\" />\n              </linearGradient>\n              <linearGradient\n                gradientUnits=\"userSpaceOnUse\"\n                id=\"paint2_linear_23_285\"\n                x1=\"72.7576\"\n                x2=\"31.406\"\n                y1=\"14.4331\"\n                y2=\"93.6381\"\n              >\n                <stop stopColor=\"#00FFA3\" />\n                <stop offset=\"1\" stopColor=\"#DC1FFF\" />\n              </linearGradient>\n              <linearGradient\n                gradientUnits=\"userSpaceOnUse\"\n                id=\"paint3_linear_23_285\"\n                x1=\"81.7406\"\n                x2=\"40.389\"\n                y1=\"19.1233\"\n                y2=\"98.3284\"\n              >\n                <stop stopColor=\"#00FFA3\" />\n                <stop offset=\"1\" stopColor=\"#DC1FFF\" />\n              </linearGradient>\n            </defs>\n          </motion.svg>\n        </div>\n      </AnimatePresence>\n    );\n  }\n);\n\nconst steps = [\n  {\n    title: \"What is a Wallet?\",\n    content:\n      \"Wallets allow you to store, receive, send and interact with digital assets like NFTs and tokens in web applications.\",\n  },\n  {\n    title: \"Security and Ease of Use\",\n    content:\n      \"With blockchain applications, your wallet is used as a secure and easy way to connect and interact with web applications.\",\n  },\n  {\n    title: \"Decentralized and Permissionless\",\n    content:\n      \"An essential tool for using blockchain without permission. Wallets allow you to explore and participate in the new web.\",\n  },\n];\ntype WalletOnboardingProps = {\n  onClose: () => void;\n};\n\nfunction WalletOnboarding({ onClose }: WalletOnboardingProps) {\n  const [currentStep, setCurrentStep] = useState(0);\n\n  const goToNext = () => {\n    setCurrentStep((prev) => Math.min(prev + 1, steps.length - 1));\n  };\n\n  const goToPrev = () => {\n    setCurrentStep((prev) => Math.max(prev - 1, 0));\n  };\n\n  return (\n    <div className=\"flex w-full flex-col items-center\">\n      <WalletIllustration\n        circleColors={[\"#123456\", \"#789ABC\", \"#DEF012\", \"#345678\"]}\n        className=\"wallet-info-illustration\"\n        currentStep={currentStep}\n      />\n      <div className=\"relative h-[120px] w-full\">\n        <AnimatePresence mode=\"popLayout\">\n          <motion.div\n            animate={{ opacity: 1, scale: 1 }}\n            className=\"absolute top-0 left-0 flex h-full w-full flex-col items-center justify-center text-center\"\n            exit={{ opacity: 0, scale: 0.6 }}\n            initial={{ opacity: 0, scale: 0.6 }}\n            key={currentStep}\n            transition={{ duration: 0.3 }}\n          >\n            <h3 className=\"font-bold text-md\">{steps[currentStep]?.title}</h3>\n            <p className=\"font-normal text-muted-foreground text-sm leading-[21px]\">\n              {steps[currentStep]?.content}\n            </p>\n          </motion.div>\n        </AnimatePresence>\n      </div>\n\n      {currentStep < steps.length - 1 && (\n        <div className=\"flex w-full items-center justify-between gap-3\">\n          <Button\n            className=\"flex-1\"\n            disabled={currentStep === 0}\n            onClick={goToPrev}\n            variant=\"outline\"\n          >\n            Previous\n          </Button>\n          <Button className=\"flex-1\" onClick={goToNext} variant=\"secondary\">\n            Next\n          </Button>\n        </div>\n      )}\n\n      {currentStep === steps.length - 1 && (\n        <Button className=\"w-full\" onClick={onClose} variant=\"outline\">\n          Learn More\n        </Button>\n      )}\n    </div>\n  );\n}\n\nexport { WalletOnboarding };\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "icon",
+      "type": "registry:component",
+      "dependencies": [
+        "@wallet-standard/react",
+        "class-variance-authority"
+      ],
+      "registryDependencies": [
+        "@shadcn/avatar"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/ui/wallet/icon.tsx",
+          "type": "registry:component",
+          "target": "components/wallet/icon.tsx",
+          "content": "\"use client\";\n\nimport type { UiWallet } from \"@wallet-standard/react\";\nimport { cva, type VariantProps } from \"class-variance-authority\";\nimport { cn } from \"@/lib/utils\";\nimport {\n  Avatar,\n  AvatarFallback,\n  AvatarImage,\n} from \"@/registry/default/ui/avatar\";\n\nconst walletIconVariants = cva(\n  \"inline-flex shrink-0 items-center justify-center overflow-hidden rounded-sm\",\n  {\n    variants: {\n      size: {\n        default: \"size-8\",\n        sm: \"size-6\",\n        lg: \"size-10\",\n        xl: \"size-12\",\n        \"2xl\": \"size-16\",\n      },\n    },\n    defaultVariants: {\n      size: \"default\",\n    },\n  }\n);\n\ninterface WalletIconProps\n  extends React.ComponentProps<typeof Avatar>,\n    VariantProps<typeof walletIconVariants> {\n  wallet?: Pick<UiWallet, \"icon\" | \"name\">;\n}\n\nfunction WalletIcon({ wallet, size, className, ...props }: WalletIconProps) {\n  return (\n    <Avatar className={cn(walletIconVariants({ size }), className)} {...props}>\n      {wallet?.icon && (\n        <AvatarImage\n          alt={wallet.name || \"Wallet\"}\n          className=\"rounded-sm\"\n          src={wallet.icon}\n        />\n      )}\n      <AvatarFallback>\n        {(wallet?.name?.[0] || \"W\").toUpperCase()}\n      </AvatarFallback>\n    </Avatar>\n  );\n}\n\nexport { WalletIcon, walletIconVariants };\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "explorer-link",
+      "type": "registry:component",
+      "dependencies": [
+        "lucide-react"
+      ],
+      "registryDependencies": [
+        "@shadcn/button",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/ui/wallet/explorer-link.tsx",
+          "type": "registry:component",
+          "target": "components/wallet/explorer-link.tsx",
+          "content": "\"use client\";\n\nimport { ExternalLink } from \"lucide-react\";\nimport type * as React from \"react\";\nimport { cn } from \"@/lib/utils\";\nimport { Button } from \"@/registry/default/ui/button\";\n\ninterface ExplorerLinkProps extends React.ComponentProps<typeof Button> {\n  url: string;\n  label: string;\n  showIcon?: boolean;\n}\n\nexport function ExplorerLink({\n  url,\n  label = \"View in Explorer\",\n  className,\n  showIcon = true,\n  variant = \"link\",\n  size = \"sm\",\n  ...props\n}: ExplorerLinkProps) {\n  return (\n    <Button\n      asChild\n      className={cn(\"h-auto px-0\", className)}\n      size={size}\n      variant={variant}\n      {...props}\n    >\n      <a href={url} rel=\"noopener noreferrer\" target=\"_blank\">\n        {label}\n        {showIcon && <ExternalLink className=\"h-3 w-3\" />}\n      </a>\n    </Button>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "balance",
+      "type": "registry:component",
+      "dependencies": [],
+      "registryDependencies": [
+        "@shadcn/skeleton",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/ui/wallet/balance.tsx",
+          "type": "registry:component",
+          "target": "components/wallet/balance.tsx",
+          "content": "\"use client\";\n\nimport { useWalletAccount } from \"@/hooks/use-wallet\";\nimport { cn } from \"@/lib/utils\";\nimport { Skeleton } from \"@/registry/default/ui/skeleton\";\n\ninterface WalletBalanceProps extends React.ComponentProps<\"div\"> {\n  balance?: bigint | null;\n  format?: (balance: bigint) => string;\n  showSymbol?: boolean;\n  symbol?: string;\n  decimals?: number;\n  loading?: boolean;\n}\n\nfunction WalletBalance({\n  className,\n  balance,\n  format,\n  showSymbol = true,\n  symbol = \"SOL\",\n  decimals = 9,\n  loading = false,\n  ...props\n}: WalletBalanceProps) {\n  const { account } = useWalletAccount();\n\n  if (!account) {\n    return (\n      <div className={cn(\"flex items-center gap-1\", className)} {...props}>\n        <Skeleton className=\"h-5 w-20\" />\n      </div>\n    );\n  }\n\n  if (loading && balance === null) {\n    return (\n      <div className={cn(\"flex items-center gap-1\", className)} {...props}>\n        <Skeleton className=\"h-5 w-20\" />\n      </div>\n    );\n  }\n\n  const currentBalance = balance ?? BigInt(0);\n  const formattedBalance = format\n    ? format(currentBalance)\n    : (Number(currentBalance) / 10 ** decimals).toFixed(4);\n\n  return (\n    <div className={cn(\"flex items-center gap-1\", className)} {...props}>\n      <span className=\"font-medium\">{formattedBalance}</span>\n      {showSymbol && (\n        <span className=\"text-muted-foreground text-sm\">{symbol}</span>\n      )}\n    </div>\n  );\n}\n\nexport { WalletBalance };\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "connect-wallet-demo",
+      "description": "A simple connect wallet button example",
+      "type": "registry:example",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/connect",
+        "@wallet-kit/solana"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/connect-wallet-demo.tsx",
+          "type": "registry:example",
+          "target": "components/wallet/examples/connect-wallet-demo.tsx",
+          "content": "\"use client\";\n\nimport { ConnectWallet } from \"@/components/wallet/connect\";\n\nexport default function ConnectWalletDemo() {\n  return (\n    <div className=\"flex items-center justify-center\">\n      <ConnectWallet />\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "connect-wallet-prompt-demo",
+      "description": "A prompt component that displays when no wallet is connected",
+      "type": "registry:example",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/connect",
+        "@wallet-kit/solana"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/connect-wallet-prompt-demo.tsx",
+          "type": "registry:example",
+          "target": "components/wallet/examples/connect-wallet-prompt-demo.tsx",
+          "content": "\"use client\";\n\nimport { ConnectWalletPrompt } from \"@/components/wallet/connect\";\n\nexport default function ConnectWalletPromptDemo() {\n  return (\n    <div className=\"flex items-center justify-center\">\n      <ConnectWalletPrompt className=\"w-full\" />\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "network-select-demo",
+      "description": "Network selection control with badge and dropdown",
+      "type": "registry:example",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/network-control",
+        "@wallet-kit/solana"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/network-select-demo.tsx",
+          "type": "registry:example",
+          "target": "components/wallet/examples/network-select-demo.tsx",
+          "content": "\"use client\";\n\nimport { Item, ItemActions, ItemContent } from \"@/registry/default/ui/item\";\nimport {\n  NetworkBadge,\n  NetworkSelect,\n} from \"@/components/wallet/network\";\n\nexport default function NetworkSelectDemo() {\n  return (\n    <Item variant=\"outline\">\n      <ItemContent>\n        <NetworkBadge />\n      </ItemContent>\n      <ItemActions>\n        <NetworkSelect />\n      </ItemActions>\n    </Item>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-list-demo",
+      "description": "List of available wallets with connect and disconnect actions",
+      "type": "registry:example",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/list",
+        "@wallet-kit/solana",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-list-demo.tsx",
+          "type": "registry:example",
+          "target": "components/wallet/examples/wallet-list-demo.tsx",
+          "content": "\"use client\";\n\nimport { useWallet } from \"@/hooks/use-wallet\";\nimport { WalletList } from \"@/components/wallet/list\";\n\nexport default function WalletListDemo() {\n  const { wallets } = useWallet();\n  return <WalletList wallets={wallets} />;\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-menu-demo",
+      "description": "Wallet dropdown menu with account info and actions",
+      "type": "registry:example",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/menu",
+        "@wallet-kit/solana"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-menu-demo.tsx",
+          "type": "registry:example",
+          "target": "components/wallet/examples/wallet-menu-demo.tsx",
+          "content": "\"use client\";\n\nimport { WalletMenu } from \"@/components/wallet/menu\";\n\nexport default function WalletMenuDemo() {\n  return (\n    <div className=\"flex items-center justify-center\">\n      <WalletMenu />\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-error-demo",
+      "description": "Wallet error dialog for displaying connection errors",
+      "type": "registry:example",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/error"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-error-demo.tsx",
+          "type": "registry:example",
+          "target": "components/wallet/examples/wallet-error-demo.tsx",
+          "content": "\"use client\";\n\nimport { useState } from \"react\";\nimport { Button } from \"@/registry/default/ui/button\";\nimport {\n  NO_ERROR,\n  WalletErrorDialog,\n} from \"@/components/wallet/error\";\n\nexport default function WalletErrorDemo() {\n  const [error, setError] = useState<symbol>(NO_ERROR);\n\n  return (\n    <div className=\"flex items-center justify-center\">\n      <Button\n        onClick={() => setError(Symbol(\"Demo Error\"))}\n        variant=\"destructive\"\n      >\n        Trigger Error\n      </Button>\n      {error !== NO_ERROR && (\n        <WalletErrorDialog\n          error={new Error(\"This is a demo error message\")}\n          onClose={() => setError(NO_ERROR)}\n        />\n      )}\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-onboarding-demo",
+      "description": "Interactive wallet onboarding flow with step-by-step guide",
+      "type": "registry:example",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/onboarding"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-onboarding-demo.tsx",
+          "type": "registry:example",
+          "target": "components/wallet/examples/wallet-onboarding-demo.tsx",
+          "content": "\"use client\";\n\nimport { toast } from \"sonner\";\nimport { Button } from \"@/registry/default/ui/button\";\nimport {\n  Dialog,\n  DialogContent,\n  DialogDescription,\n  DialogHeader,\n  DialogTitle,\n  DialogTrigger,\n} from \"@/registry/default/ui/dialog\";\nimport { WalletOnboarding } from \"@/components/wallet/onboarding\";\n\nexport default function WalletOnboardingDemo() {\n  return (\n    <div className=\"flex items-center justify-center p-4\">\n      <Dialog>\n        <DialogTrigger asChild>\n          <Button>Show Onboarding</Button>\n        </DialogTrigger>\n        <DialogContent>\n          <DialogHeader className=\"sr-only\">\n            <DialogTitle />\n            <DialogDescription />\n          </DialogHeader>\n          <WalletOnboarding\n            onClose={() => {\n              toast.info(\"Learned more about wallets\");\n            }}\n          />\n        </DialogContent>\n      </Dialog>\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-icon-demo",
+      "description": "Wallet icon component with different size variants",
+      "type": "registry:example",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/icon",
+        "@wallet-kit/solana",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-icon-demo.tsx",
+          "type": "registry:example",
+          "target": "components/wallet/examples/wallet-icon-demo.tsx",
+          "content": "\"use client\";\n\nimport { useWalletAccount } from \"@/hooks/use-wallet\";\nimport { WalletIcon } from \"@/components/wallet/icon\";\n\nexport default function WalletIconDemo() {\n  const { wallet } = useWalletAccount();\n\n  return (\n    <div className=\"flex items-center justify-center gap-3\">\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"sm\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size sm</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"default\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size default</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"lg\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size lg</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"xl\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size xl</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"2xl\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size 2xl</span>\n      </div>\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-balance-demo",
+      "description": "Display wallet balance with loading states and formatting",
+      "type": "registry:example",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/balance",
+        "@wallet-kit/solana",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-balance-demo.tsx",
+          "type": "registry:example",
+          "target": "components/wallet/examples/wallet-balance-demo.tsx",
+          "content": "\"use client\";\n\nimport { useWalletAccount } from \"@/hooks/use-wallet\";\nimport { formatSol } from \"@/lib/chains/solana\";\nimport { useSolanaBalance } from \"@/lib/chains/solana/adapter\";\nimport { WalletBalance } from \"@/components/wallet/balance\";\n\nexport default function WalletBalanceDemo() {\n  const { account } = useWalletAccount();\n  const { balance, isLoading, isError, error } = useSolanaBalance();\n\n  return (\n    <div className=\"flex flex-col items-center gap-4 p-4\">\n      <div className=\"text-center\">\n        <p className=\"mb-2 text-muted-foreground text-sm\">\n          {account ? \"Connected Wallet Balance\" : \"No wallet connected\"}\n        </p>\n        {isError && error && (\n          <p className=\"mb-2 text-destructive text-xs\">\n            Error: {error.message}\n          </p>\n        )}\n        <WalletBalance\n          balance={balance ?? null}\n          format={(balanceValue) => formatSol({ balance: balanceValue })}\n          loading={isLoading}\n        />\n      </div>\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "solana-client-demo",
+      "description": "Example using SolanaWalletProvider and useSolanaWallet hook to interact with Solana RPC",
+      "type": "registry:example",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/solana-adapter",
+        "@wallet-kit/solana",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/solana-client-demo.tsx",
+          "type": "registry:example",
+          "target": "components/wallet/examples/solana-client-demo.tsx",
+          "content": "\"use client\";\n\nimport { getExplorerLink } from \"gill\";\nimport { useWalletAccount } from \"@/hooks/use-wallet\";\nimport { formatSol } from \"@/lib/chains/solana\";\nimport {\n  useSolanaBalance,\n  useSolanaNetwork,\n} from \"@/lib/chains/solana/adapter\";\nimport { ellipsify } from \"@/lib/ellipsify\";\nimport { WalletBalance } from \"@/components/wallet/balance\";\nimport { ConnectWallet } from \"@/components/wallet/connect\";\nimport { ExplorerLink } from \"@/components/wallet/explorer-link\";\nimport { WalletIcon } from \"@/components/wallet/icon\";\nimport { WalletMenu } from \"@/components/wallet/menu\";\nimport { NetworkBadge } from \"@/components/wallet/network\";\n\nexport default function SolanaClientDemo() {\n  const { account, wallet } = useWalletAccount();\n  const solanaNetwork = useSolanaNetwork();\n  const { balance, isLoading, isError, error } = useSolanaBalance();\n\n  const explorerUrl =\n    account && solanaNetwork\n      ? getExplorerLink({\n          address: account.address,\n          cluster: solanaNetwork.cluster,\n        })\n      : \"\";\n\n  if (!account) {\n    return (\n      <div className=\"flex flex-col items-center gap-4\">\n        <div className=\"flex flex-col gap-2 text-center\">\n          <h3 className=\"font-semibold text-sm\">Solana Client Demo</h3>\n          <p className=\"text-muted-foreground text-xs\">\n            Connect a wallet to use Solana RPC client\n          </p>\n        </div>\n        <ConnectWallet />\n      </div>\n    );\n  }\n\n  return (\n    <div className=\"flex w-full flex-col gap-4\">\n      <div className=\"flex items-center justify-between\">\n        <div className=\"flex flex-col gap-1\">\n          <h3 className=\"font-semibold text-sm\">Solana Client Demo</h3>\n          <p className=\"text-muted-foreground text-xs\">\n            Using <code className=\"text-xs\">useSolanaWallet()</code> hook\n          </p>\n        </div>\n        {account && <NetworkBadge />}\n      </div>\n\n      {account && wallet && (\n        <>\n          <div className=\"flex items-center gap-3 rounded-lg border p-3\">\n            <WalletIcon wallet={wallet} />\n            <div className=\"flex flex-1 flex-col gap-1\">\n              <p className=\"font-medium text-sm\">{wallet.name}</p>\n              <p className=\"font-mono text-muted-foreground text-xs\">\n                {ellipsify(account.address, 8)}\n              </p>\n            </div>\n            <WalletMenu />\n          </div>\n\n          <div className=\"flex items-center justify-between rounded-lg border p-3\">\n            <div className=\"flex flex-col gap-1\">\n              <p className=\"text-muted-foreground text-xs\">Balance</p>\n              {isError && error ? (\n                <span className=\"text-destructive text-sm\">\n                  {error instanceof Error ? error.message : String(error)}\n                </span>\n              ) : (\n                <WalletBalance\n                  balance={balance ?? null}\n                  format={(balanceValue) =>\n                    formatSol({ balance: balanceValue })\n                  }\n                  loading={isLoading}\n                />\n              )}\n            </div>\n            {explorerUrl && (\n              <ExplorerLink label=\"View on Explorer\" url={explorerUrl} />\n            )}\n          </div>\n        </>\n      )}\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "theme-stone",
+      "type": "registry:theme",
+      "cssVars": {
+        "light": {
+          "background": "oklch(1 0 0)",
+          "foreground": "oklch(0.147 0.004 49.25)",
+          "card": "oklch(1 0 0)",
+          "card-foreground": "oklch(0.147 0.004 49.25)",
+          "popover": "oklch(1 0 0)",
+          "popover-foreground": "oklch(0.147 0.004 49.25)",
+          "primary": "oklch(0.216 0.006 56.043)",
+          "primary-foreground": "oklch(0.985 0.001 106.423)",
+          "secondary": "oklch(0.97 0.001 106.424)",
+          "secondary-foreground": "oklch(0.216 0.006 56.043)",
+          "muted": "oklch(0.97 0.001 106.424)",
+          "muted-foreground": "oklch(0.553 0.013 58.071)",
+          "accent": "oklch(0.97 0.001 106.424)",
+          "accent-foreground": "oklch(0.216 0.006 56.043)",
+          "destructive": "oklch(0.577 0.245 27.325)",
+          "border": "oklch(0.923 0.003 48.717)",
+          "input": "oklch(0.923 0.003 48.717)",
+          "ring": "oklch(0.709 0.01 56.259)",
+          "chart-1": "oklch(0.646 0.222 41.116)",
+          "chart-2": "oklch(0.6 0.118 184.704)",
+          "chart-3": "oklch(0.398 0.07 227.392)",
+          "chart-4": "oklch(0.828 0.189 84.429)",
+          "chart-5": "oklch(0.769 0.188 70.08)",
+          "radius": "0.625rem",
+          "sidebar": "oklch(0.985 0.001 106.423)",
+          "sidebar-foreground": "oklch(0.147 0.004 49.25)",
+          "sidebar-primary": "oklch(0.216 0.006 56.043)",
+          "sidebar-primary-foreground": "oklch(0.985 0.001 106.423)",
+          "sidebar-accent": "oklch(0.97 0.001 106.424)",
+          "sidebar-accent-foreground": "oklch(0.216 0.006 56.043)",
+          "sidebar-border": "oklch(0.923 0.003 48.717)",
+          "sidebar-ring": "oklch(0.709 0.01 56.259)"
+        },
+        "dark": {
+          "background": "oklch(0.147 0.004 49.25)",
+          "foreground": "oklch(0.985 0.001 106.423)",
+          "card": "oklch(0.216 0.006 56.043)",
+          "card-foreground": "oklch(0.985 0.001 106.423)",
+          "popover": "oklch(0.216 0.006 56.043)",
+          "popover-foreground": "oklch(0.985 0.001 106.423)",
+          "primary": "oklch(0.923 0.003 48.717)",
+          "primary-foreground": "oklch(0.216 0.006 56.043)",
+          "secondary": "oklch(0.268 0.007 34.298)",
+          "secondary-foreground": "oklch(0.985 0.001 106.423)",
+          "muted": "oklch(0.268 0.007 34.298)",
+          "muted-foreground": "oklch(0.709 0.01 56.259)",
+          "accent": "oklch(0.268 0.007 34.298)",
+          "accent-foreground": "oklch(0.985 0.001 106.423)",
+          "destructive": "oklch(0.704 0.191 22.216)",
+          "border": "oklch(1 0 0 / 10%)",
+          "input": "oklch(1 0 0 / 15%)",
+          "ring": "oklch(0.553 0.013 58.071)",
+          "chart-1": "oklch(0.488 0.243 264.376)",
+          "chart-2": "oklch(0.696 0.17 162.48)",
+          "chart-3": "oklch(0.769 0.188 70.08)",
+          "chart-4": "oklch(0.627 0.265 303.9)",
+          "chart-5": "oklch(0.645 0.246 16.439)",
+          "sidebar": "oklch(0.216 0.006 56.043)",
+          "sidebar-foreground": "oklch(0.985 0.001 106.423)",
+          "sidebar-primary": "oklch(0.488 0.243 264.376)",
+          "sidebar-primary-foreground": "oklch(0.985 0.001 106.423)",
+          "sidebar-accent": "oklch(0.268 0.007 34.298)",
+          "sidebar-accent-foreground": "oklch(0.985 0.001 106.423)",
+          "sidebar-border": "oklch(1 0 0 / 10%)",
+          "sidebar-ring": "oklch(0.553 0.013 58.071)"
+        }
+      },
+      "files": []
+    },
+    {
+      "name": "theme-zinc",
+      "type": "registry:theme",
+      "cssVars": {
+        "light": {
+          "background": "oklch(1 0 0)",
+          "foreground": "oklch(0.141 0.005 285.823)",
+          "card": "oklch(1 0 0)",
+          "card-foreground": "oklch(0.141 0.005 285.823)",
+          "popover": "oklch(1 0 0)",
+          "popover-foreground": "oklch(0.141 0.005 285.823)",
+          "primary": "oklch(0.21 0.006 285.885)",
+          "primary-foreground": "oklch(0.985 0 0)",
+          "secondary": "oklch(0.967 0.001 286.375)",
+          "secondary-foreground": "oklch(0.21 0.006 285.885)",
+          "muted": "oklch(0.967 0.001 286.375)",
+          "muted-foreground": "oklch(0.552 0.016 285.938)",
+          "accent": "oklch(0.967 0.001 286.375)",
+          "accent-foreground": "oklch(0.21 0.006 285.885)",
+          "destructive": "oklch(0.577 0.245 27.325)",
+          "border": "oklch(0.92 0.004 286.32)",
+          "input": "oklch(0.92 0.004 286.32)",
+          "ring": "oklch(0.705 0.015 286.067)",
+          "chart-1": "oklch(0.646 0.222 41.116)",
+          "chart-2": "oklch(0.6 0.118 184.704)",
+          "chart-3": "oklch(0.398 0.07 227.392)",
+          "chart-4": "oklch(0.828 0.189 84.429)",
+          "chart-5": "oklch(0.769 0.188 70.08)",
+          "radius": "0.625rem",
+          "sidebar": "oklch(0.985 0 0)",
+          "sidebar-foreground": "oklch(0.141 0.005 285.823)",
+          "sidebar-primary": "oklch(0.21 0.006 285.885)",
+          "sidebar-primary-foreground": "oklch(0.985 0 0)",
+          "sidebar-accent": "oklch(0.967 0.001 286.375)",
+          "sidebar-accent-foreground": "oklch(0.21 0.006 285.885)",
+          "sidebar-border": "oklch(0.92 0.004 286.32)",
+          "sidebar-ring": "oklch(0.705 0.015 286.067)"
+        },
+        "dark": {
+          "background": "oklch(0.141 0.005 285.823)",
+          "foreground": "oklch(0.985 0 0)",
+          "card": "oklch(0.21 0.006 285.885)",
+          "card-foreground": "oklch(0.985 0 0)",
+          "popover": "oklch(0.21 0.006 285.885)",
+          "popover-foreground": "oklch(0.985 0 0)",
+          "primary": "oklch(0.92 0.004 286.32)",
+          "primary-foreground": "oklch(0.21 0.006 285.885)",
+          "secondary": "oklch(0.274 0.006 286.033)",
+          "secondary-foreground": "oklch(0.985 0 0)",
+          "muted": "oklch(0.274 0.006 286.033)",
+          "muted-foreground": "oklch(0.705 0.015 286.067)",
+          "accent": "oklch(0.274 0.006 286.033)",
+          "accent-foreground": "oklch(0.985 0 0)",
+          "destructive": "oklch(0.704 0.191 22.216)",
+          "border": "oklch(1 0 0 / 10%)",
+          "input": "oklch(1 0 0 / 15%)",
+          "ring": "oklch(0.552 0.016 285.938)",
+          "chart-1": "oklch(0.488 0.243 264.376)",
+          "chart-2": "oklch(0.696 0.17 162.48)",
+          "chart-3": "oklch(0.769 0.188 70.08)",
+          "chart-4": "oklch(0.627 0.265 303.9)",
+          "chart-5": "oklch(0.645 0.246 16.439)",
+          "sidebar": "oklch(0.21 0.006 285.885)",
+          "sidebar-foreground": "oklch(0.985 0 0)",
+          "sidebar-primary": "oklch(0.488 0.243 264.376)",
+          "sidebar-primary-foreground": "oklch(0.985 0 0)",
+          "sidebar-accent": "oklch(0.274 0.006 286.033)",
+          "sidebar-accent-foreground": "oklch(0.985 0 0)",
+          "sidebar-border": "oklch(1 0 0 / 10%)",
+          "sidebar-ring": "oklch(0.552 0.016 285.938)"
+        }
+      },
+      "files": []
+    },
+    {
+      "name": "theme-neutral",
+      "type": "registry:theme",
+      "cssVars": {
+        "light": {
+          "background": "oklch(1 0 0)",
+          "foreground": "oklch(0.145 0 0)",
+          "card": "oklch(1 0 0)",
+          "card-foreground": "oklch(0.145 0 0)",
+          "popover": "oklch(1 0 0)",
+          "popover-foreground": "oklch(0.145 0 0)",
+          "primary": "oklch(0.205 0 0)",
+          "primary-foreground": "oklch(0.985 0 0)",
+          "secondary": "oklch(0.97 0 0)",
+          "secondary-foreground": "oklch(0.205 0 0)",
+          "muted": "oklch(0.97 0 0)",
+          "muted-foreground": "oklch(0.556 0 0)",
+          "accent": "oklch(0.97 0 0)",
+          "accent-foreground": "oklch(0.205 0 0)",
+          "destructive": "oklch(0.577 0.245 27.325)",
+          "border": "oklch(0.922 0 0)",
+          "input": "oklch(0.922 0 0)",
+          "ring": "oklch(0.708 0 0)",
+          "chart-1": "oklch(0.646 0.222 41.116)",
+          "chart-2": "oklch(0.6 0.118 184.704)",
+          "chart-3": "oklch(0.398 0.07 227.392)",
+          "chart-4": "oklch(0.828 0.189 84.429)",
+          "chart-5": "oklch(0.769 0.188 70.08)",
+          "radius": "0.625rem",
+          "sidebar": "oklch(0.985 0 0)",
+          "sidebar-foreground": "oklch(0.145 0 0)",
+          "sidebar-primary": "oklch(0.205 0 0)",
+          "sidebar-primary-foreground": "oklch(0.985 0 0)",
+          "sidebar-accent": "oklch(0.97 0 0)",
+          "sidebar-accent-foreground": "oklch(0.205 0 0)",
+          "sidebar-border": "oklch(0.922 0 0)",
+          "sidebar-ring": "oklch(0.708 0 0)"
+        },
+        "dark": {
+          "background": "oklch(0.145 0 0)",
+          "foreground": "oklch(0.985 0 0)",
+          "card": "oklch(0.205 0 0)",
+          "card-foreground": "oklch(0.985 0 0)",
+          "popover": "oklch(0.205 0 0)",
+          "popover-foreground": "oklch(0.985 0 0)",
+          "primary": "oklch(0.922 0 0)",
+          "primary-foreground": "oklch(0.205 0 0)",
+          "secondary": "oklch(0.269 0 0)",
+          "secondary-foreground": "oklch(0.985 0 0)",
+          "muted": "oklch(0.269 0 0)",
+          "muted-foreground": "oklch(0.708 0 0)",
+          "accent": "oklch(0.269 0 0)",
+          "accent-foreground": "oklch(0.985 0 0)",
+          "destructive": "oklch(0.704 0.191 22.216)",
+          "border": "oklch(1 0 0 / 10%)",
+          "input": "oklch(1 0 0 / 15%)",
+          "ring": "oklch(0.556 0 0)",
+          "chart-1": "oklch(0.488 0.243 264.376)",
+          "chart-2": "oklch(0.696 0.17 162.48)",
+          "chart-3": "oklch(0.769 0.188 70.08)",
+          "chart-4": "oklch(0.627 0.265 303.9)",
+          "chart-5": "oklch(0.645 0.246 16.439)",
+          "sidebar": "oklch(0.205 0 0)",
+          "sidebar-foreground": "oklch(0.985 0 0)",
+          "sidebar-primary": "oklch(0.488 0.243 264.376)",
+          "sidebar-primary-foreground": "oklch(0.985 0 0)",
+          "sidebar-accent": "oklch(0.269 0 0)",
+          "sidebar-accent-foreground": "oklch(0.985 0 0)",
+          "sidebar-border": "oklch(1 0 0 / 10%)",
+          "sidebar-ring": "oklch(0.556 0 0)"
+        }
+      },
+      "files": []
+    },
+    {
+      "name": "theme-gray",
+      "type": "registry:theme",
+      "cssVars": {
+        "light": {
+          "background": "oklch(1 0 0)",
+          "foreground": "oklch(0.13 0.028 261.692)",
+          "card": "oklch(1 0 0)",
+          "card-foreground": "oklch(0.13 0.028 261.692)",
+          "popover": "oklch(1 0 0)",
+          "popover-foreground": "oklch(0.13 0.028 261.692)",
+          "primary": "oklch(0.21 0.034 264.665)",
+          "primary-foreground": "oklch(0.985 0.002 247.839)",
+          "secondary": "oklch(0.967 0.003 264.542)",
+          "secondary-foreground": "oklch(0.21 0.034 264.665)",
+          "muted": "oklch(0.967 0.003 264.542)",
+          "muted-foreground": "oklch(0.551 0.027 264.364)",
+          "accent": "oklch(0.967 0.003 264.542)",
+          "accent-foreground": "oklch(0.21 0.034 264.665)",
+          "destructive": "oklch(0.577 0.245 27.325)",
+          "border": "oklch(0.928 0.006 264.531)",
+          "input": "oklch(0.928 0.006 264.531)",
+          "ring": "oklch(0.707 0.022 261.325)",
+          "chart-1": "oklch(0.646 0.222 41.116)",
+          "chart-2": "oklch(0.6 0.118 184.704)",
+          "chart-3": "oklch(0.398 0.07 227.392)",
+          "chart-4": "oklch(0.828 0.189 84.429)",
+          "chart-5": "oklch(0.769 0.188 70.08)",
+          "radius": "0.625rem",
+          "sidebar": "oklch(0.985 0.002 247.839)",
+          "sidebar-foreground": "oklch(0.13 0.028 261.692)",
+          "sidebar-primary": "oklch(0.21 0.034 264.665)",
+          "sidebar-primary-foreground": "oklch(0.985 0.002 247.839)",
+          "sidebar-accent": "oklch(0.967 0.003 264.542)",
+          "sidebar-accent-foreground": "oklch(0.21 0.034 264.665)",
+          "sidebar-border": "oklch(0.928 0.006 264.531)",
+          "sidebar-ring": "oklch(0.707 0.022 261.325)"
+        },
+        "dark": {
+          "background": "oklch(0.13 0.028 261.692)",
+          "foreground": "oklch(0.985 0.002 247.839)",
+          "card": "oklch(0.21 0.034 264.665)",
+          "card-foreground": "oklch(0.985 0.002 247.839)",
+          "popover": "oklch(0.21 0.034 264.665)",
+          "popover-foreground": "oklch(0.985 0.002 247.839)",
+          "primary": "oklch(0.928 0.006 264.531)",
+          "primary-foreground": "oklch(0.21 0.034 264.665)",
+          "secondary": "oklch(0.278 0.033 256.848)",
+          "secondary-foreground": "oklch(0.985 0.002 247.839)",
+          "muted": "oklch(0.278 0.033 256.848)",
+          "muted-foreground": "oklch(0.707 0.022 261.325)",
+          "accent": "oklch(0.278 0.033 256.848)",
+          "accent-foreground": "oklch(0.985 0.002 247.839)",
+          "destructive": "oklch(0.704 0.191 22.216)",
+          "border": "oklch(1 0 0 / 10%)",
+          "input": "oklch(1 0 0 / 15%)",
+          "ring": "oklch(0.551 0.027 264.364)",
+          "chart-1": "oklch(0.488 0.243 264.376)",
+          "chart-2": "oklch(0.696 0.17 162.48)",
+          "chart-3": "oklch(0.769 0.188 70.08)",
+          "chart-4": "oklch(0.627 0.265 303.9)",
+          "chart-5": "oklch(0.645 0.246 16.439)",
+          "sidebar": "oklch(0.21 0.034 264.665)",
+          "sidebar-foreground": "oklch(0.985 0.002 247.839)",
+          "sidebar-primary": "oklch(0.488 0.243 264.376)",
+          "sidebar-primary-foreground": "oklch(0.985 0.002 247.839)",
+          "sidebar-accent": "oklch(0.278 0.033 256.848)",
+          "sidebar-accent-foreground": "oklch(0.985 0.002 247.839)",
+          "sidebar-border": "oklch(1 0 0 / 10%)",
+          "sidebar-ring": "oklch(0.551 0.027 264.364)"
+        }
+      },
+      "files": []
+    },
+    {
+      "name": "theme-slate",
+      "type": "registry:theme",
+      "cssVars": {
+        "light": {
+          "background": "oklch(1 0 0)",
+          "foreground": "oklch(0.129 0.042 264.695)",
+          "card": "oklch(1 0 0)",
+          "card-foreground": "oklch(0.129 0.042 264.695)",
+          "popover": "oklch(1 0 0)",
+          "popover-foreground": "oklch(0.129 0.042 264.695)",
+          "primary": "oklch(0.208 0.042 265.755)",
+          "primary-foreground": "oklch(0.984 0.003 247.858)",
+          "secondary": "oklch(0.968 0.007 247.896)",
+          "secondary-foreground": "oklch(0.208 0.042 265.755)",
+          "muted": "oklch(0.968 0.007 247.896)",
+          "muted-foreground": "oklch(0.554 0.046 257.417)",
+          "accent": "oklch(0.968 0.007 247.896)",
+          "accent-foreground": "oklch(0.208 0.042 265.755)",
+          "destructive": "oklch(0.577 0.245 27.325)",
+          "border": "oklch(0.929 0.013 255.508)",
+          "input": "oklch(0.929 0.013 255.508)",
+          "ring": "oklch(0.704 0.04 256.788)",
+          "chart-1": "oklch(0.646 0.222 41.116)",
+          "chart-2": "oklch(0.6 0.118 184.704)",
+          "chart-3": "oklch(0.398 0.07 227.392)",
+          "chart-4": "oklch(0.828 0.189 84.429)",
+          "chart-5": "oklch(0.769 0.188 70.08)",
+          "radius": "0.625rem",
+          "sidebar": "oklch(0.984 0.003 247.858)",
+          "sidebar-foreground": "oklch(0.129 0.042 264.695)",
+          "sidebar-primary": "oklch(0.208 0.042 265.755)",
+          "sidebar-primary-foreground": "oklch(0.984 0.003 247.858)",
+          "sidebar-accent": "oklch(0.968 0.007 247.896)",
+          "sidebar-accent-foreground": "oklch(0.208 0.042 265.755)",
+          "sidebar-border": "oklch(0.929 0.013 255.508)",
+          "sidebar-ring": "oklch(0.704 0.04 256.788)"
+        },
+        "dark": {
+          "background": "oklch(0.129 0.042 264.695)",
+          "foreground": "oklch(0.984 0.003 247.858)",
+          "card": "oklch(0.208 0.042 265.755)",
+          "card-foreground": "oklch(0.984 0.003 247.858)",
+          "popover": "oklch(0.208 0.042 265.755)",
+          "popover-foreground": "oklch(0.984 0.003 247.858)",
+          "primary": "oklch(0.929 0.013 255.508)",
+          "primary-foreground": "oklch(0.208 0.042 265.755)",
+          "secondary": "oklch(0.279 0.041 260.031)",
+          "secondary-foreground": "oklch(0.984 0.003 247.858)",
+          "muted": "oklch(0.279 0.041 260.031)",
+          "muted-foreground": "oklch(0.704 0.04 256.788)",
+          "accent": "oklch(0.279 0.041 260.031)",
+          "accent-foreground": "oklch(0.984 0.003 247.858)",
+          "destructive": "oklch(0.704 0.191 22.216)",
+          "border": "oklch(1 0 0 / 10%)",
+          "input": "oklch(1 0 0 / 15%)",
+          "ring": "oklch(0.551 0.027 264.364)",
+          "chart-1": "oklch(0.488 0.243 264.376)",
+          "chart-2": "oklch(0.696 0.17 162.48)",
+          "chart-3": "oklch(0.769 0.188 70.08)",
+          "chart-4": "oklch(0.627 0.265 303.9)",
+          "chart-5": "oklch(0.645 0.246 16.439)",
+          "sidebar": "oklch(0.208 0.042 265.755)",
+          "sidebar-foreground": "oklch(0.984 0.003 247.858)",
+          "sidebar-primary": "oklch(0.488 0.243 264.376)",
+          "sidebar-primary-foreground": "oklch(0.984 0.003 247.858)",
+          "sidebar-accent": "oklch(0.279 0.041 260.031)",
+          "sidebar-accent-foreground": "oklch(0.984 0.003 247.858)",
+          "sidebar-border": "oklch(1 0 0 / 10%)",
+          "sidebar-ring": "oklch(0.551 0.027 264.364)"
+        }
+      },
+      "files": []
+    },
+    {
+      "name": "connect-wallet-demo",
+      "description": "A simple connect wallet button example",
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/connect",
+        "@wallet-kit/solana"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/connect-wallet-demo.tsx",
+          "type": "registry:block",
+          "target": "components/wallet/particles/connect-wallet-demo.tsx",
+          "content": "\"use client\";\n\nimport { ConnectWallet } from \"@/components/wallet/connect\";\n\nexport default function ConnectWalletDemo() {\n  return (\n    <div className=\"flex items-center justify-center\">\n      <ConnectWallet />\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "connect-wallet-prompt-demo",
+      "description": "A prompt component that displays when no wallet is connected",
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/connect",
+        "@wallet-kit/solana"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/connect-wallet-prompt-demo.tsx",
+          "type": "registry:block",
+          "target": "components/wallet/particles/connect-wallet-prompt-demo.tsx",
+          "content": "\"use client\";\n\nimport { ConnectWalletPrompt } from \"@/components/wallet/connect\";\n\nexport default function ConnectWalletPromptDemo() {\n  return (\n    <div className=\"flex items-center justify-center\">\n      <ConnectWalletPrompt className=\"w-full\" />\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-menu-demo",
+      "description": "Wallet dropdown menu with account info and actions",
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/menu",
+        "@wallet-kit/solana"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-menu-demo.tsx",
+          "type": "registry:block",
+          "target": "components/wallet/particles/wallet-menu-demo.tsx",
+          "content": "\"use client\";\n\nimport { WalletMenu } from \"@/components/wallet/menu\";\n\nexport default function WalletMenuDemo() {\n  return (\n    <div className=\"flex items-center justify-center\">\n      <WalletMenu />\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "network-select-demo",
+      "description": "Network selection control with badge and dropdown",
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/network-control",
+        "@wallet-kit/solana"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/network-select-demo.tsx",
+          "type": "registry:block",
+          "target": "components/wallet/particles/network-select-demo.tsx",
+          "content": "\"use client\";\n\nimport { Item, ItemActions, ItemContent } from \"@/registry/default/ui/item\";\nimport {\n  NetworkBadge,\n  NetworkSelect,\n} from \"@/components/wallet/network\";\n\nexport default function NetworkSelectDemo() {\n  return (\n    <Item variant=\"outline\">\n      <ItemContent>\n        <NetworkBadge />\n      </ItemContent>\n      <ItemActions>\n        <NetworkSelect />\n      </ItemActions>\n    </Item>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-list-demo",
+      "description": "List of available wallets with connect and disconnect actions",
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/list",
+        "@wallet-kit/solana",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-list-demo.tsx",
+          "type": "registry:block",
+          "target": "components/wallet/particles/wallet-list-demo.tsx",
+          "content": "\"use client\";\n\nimport { useWallet } from \"@/hooks/use-wallet\";\nimport { WalletList } from \"@/components/wallet/list\";\n\nexport default function WalletListDemo() {\n  const { wallets } = useWallet();\n  return <WalletList wallets={wallets} />;\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-icon-demo",
+      "description": "Wallet icon component with different size variants",
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/icon",
+        "@wallet-kit/solana",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-icon-demo.tsx",
+          "type": "registry:block",
+          "target": "components/wallet/particles/wallet-icon-demo.tsx",
+          "content": "\"use client\";\n\nimport { useWalletAccount } from \"@/hooks/use-wallet\";\nimport { WalletIcon } from \"@/components/wallet/icon\";\n\nexport default function WalletIconDemo() {\n  const { wallet } = useWalletAccount();\n\n  return (\n    <div className=\"flex items-center justify-center gap-3\">\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"sm\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size sm</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"default\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size default</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"lg\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size lg</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"xl\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size xl</span>\n      </div>\n      <div className=\"flex flex-col items-center gap-2\">\n        <WalletIcon size=\"2xl\" wallet={wallet} />\n        <span className=\"text-muted-foreground text-xs\">Size 2xl</span>\n      </div>\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-error-demo",
+      "description": "Wallet error dialog for displaying connection errors",
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/error"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-error-demo.tsx",
+          "type": "registry:block",
+          "target": "components/wallet/particles/wallet-error-demo.tsx",
+          "content": "\"use client\";\n\nimport { useState } from \"react\";\nimport { Button } from \"@/registry/default/ui/button\";\nimport {\n  NO_ERROR,\n  WalletErrorDialog,\n} from \"@/components/wallet/error\";\n\nexport default function WalletErrorDemo() {\n  const [error, setError] = useState<symbol>(NO_ERROR);\n\n  return (\n    <div className=\"flex items-center justify-center\">\n      <Button\n        onClick={() => setError(Symbol(\"Demo Error\"))}\n        variant=\"destructive\"\n      >\n        Trigger Error\n      </Button>\n      {error !== NO_ERROR && (\n        <WalletErrorDialog\n          error={new Error(\"This is a demo error message\")}\n          onClose={() => setError(NO_ERROR)}\n        />\n      )}\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-onboarding-demo",
+      "description": "Interactive wallet onboarding flow with step-by-step guide",
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/onboarding"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-onboarding-demo.tsx",
+          "type": "registry:block",
+          "target": "components/wallet/particles/wallet-onboarding-demo.tsx",
+          "content": "\"use client\";\n\nimport { toast } from \"sonner\";\nimport { Button } from \"@/registry/default/ui/button\";\nimport {\n  Dialog,\n  DialogContent,\n  DialogDescription,\n  DialogHeader,\n  DialogTitle,\n  DialogTrigger,\n} from \"@/registry/default/ui/dialog\";\nimport { WalletOnboarding } from \"@/components/wallet/onboarding\";\n\nexport default function WalletOnboardingDemo() {\n  return (\n    <div className=\"flex items-center justify-center p-4\">\n      <Dialog>\n        <DialogTrigger asChild>\n          <Button>Show Onboarding</Button>\n        </DialogTrigger>\n        <DialogContent>\n          <DialogHeader className=\"sr-only\">\n            <DialogTitle />\n            <DialogDescription />\n          </DialogHeader>\n          <WalletOnboarding\n            onClose={() => {\n              toast.info(\"Learned more about wallets\");\n            }}\n          />\n        </DialogContent>\n      </Dialog>\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "wallet-balance-demo",
+      "description": "Display wallet balance with loading states and formatting",
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/balance",
+        "@wallet-kit/solana",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/wallet-balance-demo.tsx",
+          "type": "registry:block",
+          "target": "components/wallet/particles/wallet-balance-demo.tsx",
+          "content": "\"use client\";\n\nimport { useWalletAccount } from \"@/hooks/use-wallet\";\nimport { formatSol } from \"@/lib/chains/solana\";\nimport { useSolanaBalance } from \"@/lib/chains/solana/adapter\";\nimport { WalletBalance } from \"@/components/wallet/balance\";\n\nexport default function WalletBalanceDemo() {\n  const { account } = useWalletAccount();\n  const { balance, isLoading, isError, error } = useSolanaBalance();\n\n  return (\n    <div className=\"flex flex-col items-center gap-4 p-4\">\n      <div className=\"text-center\">\n        <p className=\"mb-2 text-muted-foreground text-sm\">\n          {account ? \"Connected Wallet Balance\" : \"No wallet connected\"}\n        </p>\n        {isError && error && (\n          <p className=\"mb-2 text-destructive text-xs\">\n            Error: {error.message}\n          </p>\n        )}\n        <WalletBalance\n          balance={balance ?? null}\n          format={(balanceValue) => formatSol({ balance: balanceValue })}\n          loading={isLoading}\n        />\n      </div>\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "solana-client-demo",
+      "description": "Example using SolanaWalletProvider and useSolanaWallet hook to interact with Solana RPC",
+      "type": "registry:block",
+      "dependencies": [],
+      "registryDependencies": [
+        "@wallet-kit/provider",
+        "@wallet-kit/solana-adapter",
+        "@wallet-kit/solana",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/examples/solana-client-demo.tsx",
+          "type": "registry:block",
+          "target": "components/wallet/particles/solana-client-demo.tsx",
+          "content": "\"use client\";\n\nimport { getExplorerLink } from \"gill\";\nimport { useWalletAccount } from \"@/hooks/use-wallet\";\nimport { formatSol } from \"@/lib/chains/solana\";\nimport {\n  useSolanaBalance,\n  useSolanaNetwork,\n} from \"@/lib/chains/solana/adapter\";\nimport { ellipsify } from \"@/lib/ellipsify\";\nimport { WalletBalance } from \"@/components/wallet/balance\";\nimport { ConnectWallet } from \"@/components/wallet/connect\";\nimport { ExplorerLink } from \"@/components/wallet/explorer-link\";\nimport { WalletIcon } from \"@/components/wallet/icon\";\nimport { WalletMenu } from \"@/components/wallet/menu\";\nimport { NetworkBadge } from \"@/components/wallet/network\";\n\nexport default function SolanaClientDemo() {\n  const { account, wallet } = useWalletAccount();\n  const solanaNetwork = useSolanaNetwork();\n  const { balance, isLoading, isError, error } = useSolanaBalance();\n\n  const explorerUrl =\n    account && solanaNetwork\n      ? getExplorerLink({\n          address: account.address,\n          cluster: solanaNetwork.cluster,\n        })\n      : \"\";\n\n  if (!account) {\n    return (\n      <div className=\"flex flex-col items-center gap-4\">\n        <div className=\"flex flex-col gap-2 text-center\">\n          <h3 className=\"font-semibold text-sm\">Solana Client Demo</h3>\n          <p className=\"text-muted-foreground text-xs\">\n            Connect a wallet to use Solana RPC client\n          </p>\n        </div>\n        <ConnectWallet />\n      </div>\n    );\n  }\n\n  return (\n    <div className=\"flex w-full flex-col gap-4\">\n      <div className=\"flex items-center justify-between\">\n        <div className=\"flex flex-col gap-1\">\n          <h3 className=\"font-semibold text-sm\">Solana Client Demo</h3>\n          <p className=\"text-muted-foreground text-xs\">\n            Using <code className=\"text-xs\">useSolanaWallet()</code> hook\n          </p>\n        </div>\n        {account && <NetworkBadge />}\n      </div>\n\n      {account && wallet && (\n        <>\n          <div className=\"flex items-center gap-3 rounded-lg border p-3\">\n            <WalletIcon wallet={wallet} />\n            <div className=\"flex flex-1 flex-col gap-1\">\n              <p className=\"font-medium text-sm\">{wallet.name}</p>\n              <p className=\"font-mono text-muted-foreground text-xs\">\n                {ellipsify(account.address, 8)}\n              </p>\n            </div>\n            <WalletMenu />\n          </div>\n\n          <div className=\"flex items-center justify-between rounded-lg border p-3\">\n            <div className=\"flex flex-col gap-1\">\n              <p className=\"text-muted-foreground text-xs\">Balance</p>\n              {isError && error ? (\n                <span className=\"text-destructive text-sm\">\n                  {error instanceof Error ? error.message : String(error)}\n                </span>\n              ) : (\n                <WalletBalance\n                  balance={balance ?? null}\n                  format={(balanceValue) =>\n                    formatSol({ balance: balanceValue })\n                  }\n                  loading={isLoading}\n                />\n              )}\n            </div>\n            {explorerUrl && (\n              <ExplorerLink label=\"View on Explorer\" url={explorerUrl} />\n            )}\n          </div>\n        </>\n      )}\n    </div>\n  );\n}\n"
+        }
+      ],
+      "categories": [
+        "wallet"
+      ]
+    },
+    {
+      "name": "use-wallet",
+      "type": "registry:hook",
+      "dependencies": [
+        "@wallet-standard/react"
+      ],
+      "registryDependencies": [
+        "@wallet-kit/context",
+        "@wallet-kit/network",
+        "@wallet-kit/storage"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/hooks/use-wallet.ts",
+          "type": "registry:hook",
+          "target": "hooks/use-wallet.ts",
+          "content": "\"use client\";\n\nimport {\n  type UiWallet,\n  useConnect,\n  useDisconnect,\n  useWallets,\n} from \"@wallet-standard/react\";\nimport { useContext, useEffect, useMemo } from \"react\";\nimport { toast } from \"sonner\";\n\nimport {\n  WalletAccountContext,\n  WalletNetworkContext,\n  WalletUiContext,\n  type WalletUiContextValue,\n} from \"@/lib/chains/context\";\n\nfunction useWallet<TClient = unknown>() {\n  return useContext(WalletUiContext) as WalletUiContextValue<TClient>;\n}\n\nfunction useWalletAccount() {\n  return useContext(WalletAccountContext);\n}\n\nfunction useWalletNetwork() {\n  return useContext(WalletNetworkContext);\n}\n\nfunction useAvailableWallets(chainPrefix?: string) {\n  const readonlyWallets = useWallets();\n  return useMemo(\n    () =>\n      readonlyWallets\n        .filter(\n          (wallet) =>\n            !chainPrefix || wallet.chains.some((i) => i.startsWith(chainPrefix))\n        )\n        .sort((a, b) => a.name.localeCompare(b.name)),\n    [readonlyWallets, chainPrefix]\n  );\n}\n\nfunction useWalletConnection({ wallet }: { wallet: UiWallet }) {\n  const { connect: connectAccount } = useWallet();\n  const { setAccount } = useWalletAccount();\n\n  const [isConnecting, connect] = useConnect(wallet);\n  const [isDisconnecting, disconnect] = useDisconnect(wallet);\n\n  useEffect(() => {\n    if (isDisconnecting) {\n      setAccount(undefined);\n    }\n  }, [isDisconnecting, setAccount]);\n\n  return {\n    connect: async () => {\n      const connectedAccount = await connect();\n      if (!connectedAccount.length) {\n        console.warn(`Connect to ${wallet.name} but there are no accounts.`);\n        return connectedAccount;\n      }\n      // TODO: Support wallets with multiple accounts\n      const first = connectedAccount[0];\n      if (!first) {\n        return connectedAccount;\n      }\n      setAccount(first);\n      connectAccount(first);\n\n      toast.success(`Connected to ${wallet.name} successfully`);\n      return connectedAccount;\n    },\n    disconnect: async () => {\n      await disconnect();\n      toast.success(`Disconnected from ${wallet.name} successfully`);\n    },\n    isConnecting,\n    isDisconnecting,\n  };\n}\n\nexport {\n  useWallet,\n  useWalletAccount,\n  useWalletNetwork,\n  useWalletConnection,\n  useAvailableWallets,\n};\n"
+        }
+      ]
+    },
+    {
+      "name": "ellipsify",
+      "type": "registry:lib",
+      "files": [
+        {
+          "path": "src/registry/default/lib/ellipsify.ts",
+          "type": "registry:lib",
+          "target": "lib/ellipsify.ts",
+          "content": "export function ellipsify(str = \"\", len = 4, delimiter = \"..\") {\n  const strLen = str.length;\n  const limit = len * 2 + delimiter.length;\n  return strLen >= limit\n    ? str.substring(0, len) + delimiter + str.substring(strLen - len, strLen)\n    : str;\n}\n"
+        }
+      ]
+    },
+    {
+      "name": "network",
+      "type": "registry:lib",
+      "files": [
+        {
+          "path": "src/registry/default/lib/chains/network.ts",
+          "type": "registry:lib",
+          "target": "lib/chains/network.ts",
+          "content": "import type { IdentifierString } from \"@wallet-standard/core\";\n\ntype Network = {\n  id: IdentifierString;\n  label: string;\n  url: string;\n};\n\nfunction defineNetwork<NetworkType extends Network>({\n  id,\n  label,\n  url,\n}: NetworkType) {\n  return (props: Partial<Network> = {}): Network => ({\n    id,\n    label,\n    url,\n    ...props,\n  });\n}\n\nexport { type Network, defineNetwork };\n"
+        }
+      ]
+    },
+    {
+      "name": "context",
+      "type": "registry:lib",
+      "files": [
+        {
+          "path": "src/registry/default/lib/chains/context.ts",
+          "type": "registry:lib",
+          "target": "lib/chains/context.ts",
+          "content": "\"use client\";\n\nimport type { UiWallet, UiWalletAccount } from \"@wallet-standard/react\";\nimport { createContext } from \"react\";\nimport type { Network } from \"@/lib/chains/network\";\n\ntype WalletNetworkContextValue = {\n  network: Network;\n  networks: Network[];\n  setNetwork(networkId: Network[\"id\"]): void;\n};\n\nconst WalletNetworkContext = createContext<WalletNetworkContextValue>(\n  {} as WalletNetworkContextValue\n);\n\ntype WalletAccountInfo = {\n  account: UiWalletAccount;\n  accountKeys: string[];\n  network: Network;\n  wallet: UiWallet | undefined;\n};\n\ninterface WalletAccountState extends Omit<WalletAccountInfo, \"account\"> {\n  account: UiWalletAccount | undefined;\n  setAccount: React.Dispatch<React.SetStateAction<UiWalletAccount | undefined>>;\n}\n\nconst WalletAccountContext = createContext<WalletAccountState>(\n  {} as WalletAccountState\n);\n\ntype WalletUiContextValue<TClient = unknown> = {\n  account?: UiWalletAccount;\n  accountKeys: string[];\n  client?: TClient;\n  connect: (wallet: UiWalletAccount) => void;\n  connected: boolean;\n  copy: () => void;\n  disconnect: () => void;\n  isModalOpen: boolean;\n  network: Network;\n  setIsModalOpen: (open: boolean) => void;\n  wallet?: UiWallet;\n  wallets: UiWallet[];\n};\n\ntype WalletUiContextProviderProps<TClient = unknown> = {\n  children: React.ReactNode;\n  client?: TClient;\n};\n\nconst WalletUiContext = createContext<WalletUiContextValue<unknown>>(\n  {} as WalletUiContextValue<unknown>\n);\n\nexport {\n  WalletNetworkContext,\n  WalletAccountContext,\n  WalletUiContext,\n  type WalletNetworkContextValue,\n  type WalletAccountState,\n  type WalletUiContextValue,\n  type WalletUiContextProviderProps,\n};\n"
+        }
+      ]
+    },
+    {
+      "name": "storage",
+      "type": "registry:lib",
+      "dependencies": [
+        "@nanostores/react",
+        "nanostores"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/lib/chains/storage.ts",
+          "type": "registry:lib",
+          "target": "lib/chains/storage.ts",
+          "content": "import { persistentAtom } from \"@nanostores/persistent\";\nimport { computed, type ReadableAtom, type WritableAtom } from \"nanostores\";\nimport type { Network } from \"@/lib/chains/network\";\n\ntype StorageAccount = Storage<string | undefined>;\ntype StorageNetwork = Storage<Network[\"id\"]>;\n\nclass Storage<T> {\n  private readonly atom: WritableAtom<T | undefined>;\n  readonly key: string;\n  readonly initial: T | undefined;\n\n  constructor(key: string, initial?: T) {\n    this.key = key;\n    this.initial = initial;\n    this.atom = persistentAtom<T | undefined>(key, initial, {\n      encode: JSON.stringify,\n      decode: JSON.parse,\n    });\n  }\n\n  get() {\n    return this.atom.get();\n  }\n\n  set(value: T | undefined) {\n    this.atom.set(value);\n  }\n\n  get value(): ReadableAtom<T | undefined> {\n    return computed(this.atom, (value) => value);\n  }\n}\n\nfunction createStorage<T>(key: string, defaultValue?: T): Storage<T> {\n  return new Storage<T>(key, defaultValue);\n}\n\nfunction createStorageAccount(key = \"wallet-kit:account\") {\n  return createStorage<string | undefined>(key);\n}\n\nfunction createStorageNetwork(key = \"wallet-kit:network\") {\n  return createStorage<Network[\"id\"]>(key);\n}\n\nexport {\n  Storage,\n  type StorageAccount,\n  type StorageNetwork,\n  createStorageAccount,\n  createStorageNetwork,\n};\n"
+        }
+      ]
+    },
+    {
+      "name": "solana",
+      "type": "registry:lib",
+      "dependencies": [
+        "gill"
+      ],
+      "registryDependencies": [
+        "@wallet-kit/network"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/lib/chains/solana/index.ts",
+          "type": "registry:lib",
+          "target": "lib/chains/solana/index.ts",
+          "content": "import {\n  type ClusterUrl,\n  LAMPORTS_PER_SOL,\n  type SolanaClusterMoniker,\n} from \"gill\";\nimport {\n  defineNetwork,\n  type Network,\n} from \"@/lib/chains/network\";\n\ntype SolanaNetworkId = `solana:${string}`;\n\ninterface SolanaNetwork extends Network {\n  id: SolanaNetworkId;\n  url: ClusterUrl;\n}\n\nconst createSolanaMainnet = defineNetwork<SolanaNetwork>({\n  id: \"solana:mainnet\",\n  label: \"Mainnet\",\n  url: \"mainnet\",\n});\n\nconst createSolanaDevnet = defineNetwork<SolanaNetwork>({\n  id: \"solana:devnet\",\n  label: \"Devnet\",\n  url: \"devnet\",\n});\n\nconst createSolanaTestnet = defineNetwork<SolanaNetwork>({\n  id: \"solana:testnet\",\n  label: \"Testnet\",\n  url: \"testnet\",\n});\n\nconst createSolanaLocalnet = defineNetwork<SolanaNetwork>({\n  id: \"solana:localnet\",\n  label: \"Localnet\",\n  url: \"localnet\",\n});\n\ntype FormatSolArgs = {\n  balance: bigint;\n  locale?: Intl.LocalesArgument;\n  options?: Intl.NumberFormatOptions;\n};\n\nfunction formatSol({\n  balance,\n  locale = \"en-US\",\n  options = {\n    style: \"decimal\",\n    minimumFractionDigits: 2,\n    maximumFractionDigits: 5,\n  },\n}: FormatSolArgs) {\n  if (!balance) {\n    return \"0\";\n  }\n  return Intl.NumberFormat(locale, {\n    ...options,\n  }).format(Number(balance) / LAMPORTS_PER_SOL);\n}\nfunction getSolanaClusterMoniker(\n  networkId: SolanaNetworkId\n): SolanaClusterMoniker {\n  if (!networkId.startsWith(\"solana:\")) {\n    throw new Error(`Invalid network id: ${networkId}`);\n  }\n  return networkId.replace(\"solana:\", \"\") as SolanaClusterMoniker;\n}\n\nexport {\n  formatSol,\n  createSolanaDevnet,\n  createSolanaMainnet,\n  createSolanaTestnet,\n  createSolanaLocalnet,\n  getSolanaClusterMoniker,\n  type SolanaNetwork,\n  type SolanaNetworkId,\n};\n"
+        }
+      ]
+    },
+    {
+      "name": "solana-adapter",
+      "type": "registry:lib",
+      "dependencies": [
+        "gill",
+        "react",
+        "@gillsdk/react",
+        "@tanstack/react-query"
+      ],
+      "registryDependencies": [
+        "@wallet-kit/context",
+        "@wallet-kit/network",
+        "@wallet-kit/use-wallet"
+      ],
+      "files": [
+        {
+          "path": "src/registry/default/lib/chains/solana/adapter.tsx",
+          "type": "registry:lib",
+          "target": "lib/chains/solana/adapter.tsx",
+          "content": "\"use client\";\n\nimport {\n  GILL_HOOK_CLIENT_KEY,\n  SolanaProvider,\n  useAccount as useGillAccount,\n  useBalance as useGillBalance,\n  useLatestBlockhash as useGillLatestBlockhash,\n  useProgramAccounts as useGillProgramAccounts,\n  useSignatureStatuses as useGillSignatureStatuses,\n  useSignaturesForAddress as useGillSignaturesForAddress,\n  useSolanaClient as useGillSolanaClient,\n  useTokenAccount as useGillTokenAccount,\n  useTokenMint as useGillTokenMint,\n  useUpdateSolanaClient as useGillUpdateSolanaClient,\n} from \"@gillsdk/react\";\nimport {\n  QueryClient,\n  type QueryClient as QueryClientType,\n  useQueryClient,\n} from \"@tanstack/react-query\";\nimport {\n  type Address,\n  type Commitment,\n  createSolanaClient,\n  type SolanaClient,\n  type SolanaClientUrlOrMoniker,\n  type SolanaClusterMoniker,\n} from \"gill\";\nimport { useContext, useMemo } from \"react\";\nimport {\n  useWallet,\n  useWalletAccount,\n  useWalletNetwork,\n} from \"@/hooks/use-wallet\";\nimport {\n  WalletUiContext,\n  type WalletUiContextValue,\n} from \"@/lib/chains/context\";\nimport {\n  getSolanaClusterMoniker,\n  type SolanaNetworkId,\n} from \"@/lib/chains/solana\";\n\ntype SolanaWalletProviderProps = {\n  children: React.ReactNode;\n  url?: SolanaClientUrlOrMoniker;\n  queryClient?: QueryClientType;\n};\n\ntype SolanaNetworkInfo = {\n  networkId: SolanaNetworkId;\n  cluster: SolanaClusterMoniker;\n};\n\nfunction isSolanaNetwork(networkId: string): boolean {\n  return networkId.startsWith(\"solana:\");\n}\n\nfunction createSolanaClientFromNetwork(\n  networkUrl: string,\n  customUrl?: SolanaClientUrlOrMoniker\n): SolanaClient {\n  const urlOrMoniker = customUrl ?? networkUrl;\n  return createSolanaClient({ urlOrMoniker });\n}\n\nfunction shouldInjectSolanaClient(\n  existingClient: unknown,\n  isSolana: boolean\n): boolean {\n  return isSolana && !existingClient;\n}\n\nfunction ensureSolanaQueryClient(\n  existingClient: QueryClientType\n): QueryClientType {\n  const defaultQueryFn = existingClient.getDefaultOptions().queries?.queryFn;\n\n  if (defaultQueryFn) {\n    return existingClient;\n  }\n\n  const defaultOptions = existingClient.getDefaultOptions();\n\n  return new QueryClient({\n    ...defaultOptions,\n    defaultOptions: {\n      ...defaultOptions,\n      queries: {\n        ...defaultOptions.queries,\n        queryFn: ({ queryKey }) => {\n          if (queryKey[0] === GILL_HOOK_CLIENT_KEY) {\n            throw new Error(\n              \"SolanaProvider must be present when using @gillsdk/react hooks\"\n            );\n          }\n          throw new Error(\n            `No queryFn provided for query key: ${String(queryKey[0])}`\n          );\n        },\n      },\n    },\n  });\n}\n\nfunction SolanaWalletProvider({\n  children,\n  url,\n  queryClient: queryClientProp,\n}: SolanaWalletProviderProps) {\n  const existingContext = useContext(WalletUiContext);\n  const { network } = useWalletNetwork();\n  const queryClientFromContext = useQueryClient();\n\n  const queryClient = useMemo(\n    () => ensureSolanaQueryClient(queryClientProp ?? queryClientFromContext),\n    [queryClientProp, queryClientFromContext]\n  );\n\n  const isSolana = isSolanaNetwork(network.id);\n\n  const solanaClient = useMemo(() => {\n    if (!isSolana) {\n      return null;\n    }\n    const client = createSolanaClientFromNetwork(network.url, url);\n    queryClient.setQueryData([GILL_HOOK_CLIENT_KEY], client);\n    return client;\n  }, [isSolana, network.url, url, queryClient]);\n\n  const enhancedContext = useMemo<WalletUiContextValue<SolanaClient>>(\n    () => ({\n      ...existingContext,\n      client: (solanaClient ?? existingContext.client) as SolanaClient,\n    }),\n    [existingContext, solanaClient]\n  );\n\n  const hasSolanaClient = isSolana && solanaClient;\n  if (!hasSolanaClient) {\n    return children;\n  }\n\n  const shouldInject = shouldInjectSolanaClient(\n    existingContext.client,\n    isSolana\n  );\n\n  const providerContent = (\n    <SolanaProvider client={solanaClient} queryClient={queryClient}>\n      {children}\n    </SolanaProvider>\n  );\n\n  if (!shouldInject) {\n    return providerContent;\n  }\n\n  return (\n    <WalletUiContext.Provider value={enhancedContext}>\n      {providerContent}\n    </WalletUiContext.Provider>\n  );\n}\n\nfunction useSolanaNetwork(): SolanaNetworkInfo | null {\n  const { network } = useWalletNetwork();\n\n  if (!network) {\n    return null;\n  }\n\n  if (!isSolanaNetwork(network.id)) {\n    return null;\n  }\n\n  return {\n    networkId: network.id as SolanaNetworkId,\n    cluster: getSolanaClusterMoniker(network.id as SolanaNetworkId),\n  };\n}\n\nfunction useSolanaWallet(url?: SolanaClientUrlOrMoniker): SolanaClient {\n  const wallet = useWallet<SolanaClient>();\n  const { network } = useWalletNetwork();\n\n  const fallbackClient = useMemo(() => {\n    const urlOrMoniker = url ?? (network.url as SolanaClientUrlOrMoniker);\n    return createSolanaClient({ urlOrMoniker });\n  }, [network.url, url]);\n\n  return wallet.client ?? fallbackClient;\n}\n\nfunction createDisabledQueryResult<\n  T extends { isLoading?: boolean; isError?: boolean; error?: unknown },\n>(result: T, override?: Partial<T>): T {\n  return {\n    ...result,\n    isLoading: false,\n    isError: false,\n    error: null,\n    ...override,\n  };\n}\n\nfunction useSolanaBalance(address?: string) {\n  const { account } = useWalletAccount();\n  const solanaNetwork = useSolanaNetwork();\n  const addressToUse = address ?? account?.address ?? \"\";\n  const shouldFetch = Boolean(addressToUse && solanaNetwork);\n\n  const result = useGillBalance({\n    address: addressToUse,\n    options: {\n      enabled: shouldFetch,\n    },\n  });\n\n  if (!shouldFetch) {\n    return createDisabledQueryResult({\n      ...result,\n      balance: null,\n    });\n  }\n\n  return result;\n}\n\nfunction useSolanaAccount(address?: string) {\n  const { account } = useWalletAccount();\n  const solanaNetwork = useSolanaNetwork();\n  const addressToUse = address ?? account?.address ?? \"\";\n  const shouldFetch = Boolean(addressToUse && solanaNetwork);\n\n  const result = useGillAccount({\n    address: addressToUse,\n    options: {\n      enabled: shouldFetch,\n    },\n  });\n\n  if (!shouldFetch) {\n    return createDisabledQueryResult({\n      ...result,\n      account: null,\n    });\n  }\n\n  return result;\n}\n\nfunction useSolanaEnabled() {\n  const solanaNetwork = useSolanaNetwork();\n  return Boolean(solanaNetwork);\n}\n\nfunction useSolanaTokenAccount(\n  mint: Address,\n  owner: Address,\n  options?: {\n    commitment?: Commitment;\n  }\n) {\n  const isSolana = useSolanaEnabled();\n\n  return useGillTokenAccount({\n    mint,\n    owner,\n    options: {\n      enabled: isSolana,\n      ...options,\n    },\n  });\n}\n\nfunction useSolanaTokenMint(\n  mint: Address,\n  options?: {\n    commitment?: Commitment;\n  }\n) {\n  const isSolana = useSolanaEnabled();\n\n  return useGillTokenMint({\n    mint,\n    options: {\n      enabled: isSolana,\n      ...options,\n    },\n  });\n}\n\nfunction useSolanaProgramAccounts(\n  program: Address,\n  options?: {\n    commitment?: Commitment;\n    filters?: unknown[];\n  }\n) {\n  const isSolana = useSolanaEnabled();\n\n  return useGillProgramAccounts({\n    program,\n    options: {\n      enabled: isSolana,\n      ...options,\n    },\n  });\n}\n\nfunction useSolanaSignaturesForAddress(\n  address: Address,\n  options?: {\n    limit?: number;\n    before?: string;\n    until?: string;\n  }\n) {\n  const isSolana = useSolanaEnabled();\n\n  return useGillSignaturesForAddress({\n    address,\n    options: {\n      enabled: isSolana,\n      ...options,\n    },\n  });\n}\n\nfunction useSolanaSignatureStatuses(\n  signatures: string[],\n  options?: {\n    searchTransactionHistory?: boolean;\n  }\n) {\n  const isSolana = useSolanaEnabled();\n\n  return useGillSignatureStatuses({\n    signatures,\n    options: {\n      enabled: isSolana && signatures.length > 0,\n      ...options,\n    },\n  });\n}\n\nfunction useSolanaLatestBlockhash() {\n  const isSolana = useSolanaEnabled();\n\n  return useGillLatestBlockhash({\n    options: {\n      enabled: isSolana,\n    },\n  });\n}\n\nfunction useSolanaClient() {\n  return useGillSolanaClient();\n}\n\nfunction useUpdateSolanaClient() {\n  return useGillUpdateSolanaClient();\n}\n\nexport {\n  SolanaWalletProvider,\n  isSolanaNetwork,\n  useSolanaAccount,\n  useSolanaBalance,\n  useSolanaClient,\n  useSolanaLatestBlockhash,\n  useSolanaNetwork,\n  useSolanaProgramAccounts,\n  useSolanaSignatureStatuses,\n  useSolanaSignaturesForAddress,\n  useSolanaTokenAccount,\n  useSolanaTokenMint,\n  useSolanaWallet,\n  useUpdateSolanaClient,\n};\n"
+        }
+      ]
+    }
+  ]
+}

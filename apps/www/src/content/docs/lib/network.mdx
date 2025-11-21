@@ -1,0 +1,137 @@
+---
+title: Network
+description: Network definition utilities for blockchain networks.
+---
+
+The `network.ts` file provides utilities for defining and working with blockchain networks in a type-safe way.
+
+## Overview
+
+This module provides:
+
+- `Network` type: The base type for all network definitions
+- `defineNetwork()`: A factory function to create network definitions
+
+## Installation
+
+<CodeTabs>
+  <TabsList>
+    <TabsTrigger value="cli">CLI</TabsTrigger>
+    <TabsTrigger value="manual">Manual</TabsTrigger>
+  </TabsList>
+  <TabsContent value="cli">
+    ```bash
+    npx shadcn@latest add @wallet-kit/network
+    ```
+  </TabsContent>
+  <TabsContent value="manual">
+    <Steps>
+      <Step>Copy the network code:</Step>
+      <Source name="network" title="lib/chains/network.ts" />
+    </Steps>
+  </TabsContent>
+</CodeTabs>
+
+## API Reference
+
+### Network Type
+
+```typescript
+type Network = {
+  id: IdentifierString;
+  label: string;
+  url: string;
+}
+```
+
+- `id`: A unique identifier following the format `"chain:network"` (e.g., `"solana:mainnet"`)
+- `label`: Human-readable network name (e.g., `"Mainnet"`, `"Devnet"`)
+- `url`: Network RPC URL or cluster identifier
+
+### defineNetwork
+
+A factory function that creates a network definition function.
+
+```typescript
+function defineNetwork<NetworkType extends Network>({
+  id,
+  label,
+  url,
+}: NetworkType) {
+  return (props: Partial<Network> = {}): Network => ({
+    id,
+    label,
+    url,
+    ...props,
+  });
+}
+```
+
+#### Parameters
+
+| Parameter | Type | Description |
+| --- | --- | --- |
+| `id` | `IdentifierString` | The network identifier (e.g., `"solana:mainnet"`) |
+| `label` | `string` | Human-readable network name |
+| `url` | `string` | Network RPC URL or cluster identifier |
+
+#### Returns
+
+A function that returns a `Network` object, optionally with overridden properties.
+
+## Usage
+
+### Creating Network Definitions
+
+```tsx
+import { defineNetwork } from "@/lib/chains/network"
+
+const createMainnet = defineNetwork({
+  id: "solana:mainnet",
+  label: "Mainnet",
+  url: "mainnet",
+})
+
+// Use it
+const mainnet = createMainnet()
+// { id: "solana:mainnet", label: "Mainnet", url: "mainnet" }
+
+// Override properties
+const customMainnet = createMainnet({ url: "https://api.mainnet-beta.solana.com" })
+```
+
+### With Type Extensions
+
+```tsx
+import { defineNetwork, type Network } from "@/lib/chains/network"
+
+interface SolanaNetwork extends Network {
+  id: `solana:${string}`
+  url: ClusterUrl
+}
+
+const createSolanaMainnet = defineNetwork<SolanaNetwork>({
+  id: "solana:mainnet",
+  label: "Mainnet",
+  url: "mainnet",
+})
+```
+
+## Network ID Format
+
+Network IDs must follow the format: `"chain:network"`
+
+- **Chain**: The blockchain name (e.g., `solana`, `ethereum`, `sui`)
+- **Network**: The network name (e.g., `mainnet`, `devnet`, `testnet`)
+
+Examples:
+- `"solana:mainnet"`
+- `"solana:devnet"`
+- `"ethereum:mainnet"`
+- `"sui:mainnet"`
+
+<Callout>
+- Network IDs must be unique within your application
+- The `defineNetwork` function provides type safety and allows for property overrides
+- Network definitions are typically created in blockchain-specific modules (e.g., `solana/index.ts`)
+</Callout>

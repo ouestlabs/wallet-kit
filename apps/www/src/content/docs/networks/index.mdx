@@ -1,0 +1,45 @@
+---
+title: Supported Networks
+description: Blockchain network integrations and configurations.
+---
+
+**wallet/kit** is designed to support multiple blockchains through the Wallet Standard. This section documents the available blockchain integrations.
+
+## Overview
+
+The wallet kit uses a plugin-based architecture where each blockchain provides:
+
+- Network definitions (mainnet, devnet, testnet, etc.)
+- Chain-specific utilities (formatting, validation, etc.)
+- Type definitions for type safety
+
+## Available Integrations
+
+### Solana
+
+First-class support for Solana networks with utilities for formatting SOL amounts.
+
+[Learn more about Solana integration →](/docs/networks/solana)
+
+### Ethereum
+
+Coming soon - Ethereum network support.
+
+### Sui
+
+Coming soon - Sui network support.
+
+### Bitcoin
+
+Coming soon - Bitcoin network support.
+
+## Adding a New Blockchain
+
+To add support for a new blockchain:
+
+1. Create a network definition file (e.g., `lib/chains/ethereum/index.ts`)
+2. Use `defineNetwork()` to create network factories
+3. Export chain-specific utilities
+4. Add the networks to `WalletProvider`
+
+See the [Solana integration](/docs/networks/solana) for a complete example.

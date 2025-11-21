@@ -1,0 +1,132 @@
+---
+title: Wallet Balance
+description: Display wallet balance with loading states and customizable formatting.
+component: true
+links:
+  doc:
+    - https://ui.shadcn.com/docs/components/skeleton
+---
+
+<Preview name="wallet-balance-demo" />
+
+## Installation
+
+<CodeTabs>
+  <TabsList>
+    <TabsTrigger value="cli">CLI</TabsTrigger>
+    <TabsTrigger value="manual">Manual</TabsTrigger>
+  </TabsList>
+  <TabsContent value="cli">
+    ```bash
+    npx shadcn@latest add @wallet-kit/balance
+    ```
+  </TabsContent>
+  <TabsContent value="manual">
+    <Steps>
+      <Step>Install required shadcn/ui primitives:</Step>
+
+      ```bash
+      npx shadcn@latest add skeleton
+      ```
+
+      <Step>Install required wallet hooks:</Step>
+
+      ```bash
+      npx shadcn@latest add @wallet-kit/use-wallet
+      ```
+
+      <Step>Copy the component code:</Step>
+
+      <Source name="balance" title="components/wallet/balance.tsx" />
+    </Steps>
+  </TabsContent>
+</CodeTabs>
+
+## Usage
+
+```tsx
+import { WalletBalance } from "@/components/wallet/balance";
+
+export default function Demo() {
+  return <WalletBalance />;
+}
+```
+
+## API Reference
+
+### WalletBalance
+
+Displays the connected wallet's balance. Shows a loading skeleton when no wallet is connected or while fetching balance.
+
+#### Props
+
+| Prop          | Type                      | Default | Description                                                                 |
+| ------------- | ------------------------- | ------- | --------------------------------------------------------------------------- |
+| `format`      | `(balance: bigint) => string` | -       | Custom formatter function for the balance. Receives the balance as `bigint`. |
+| `showSymbol`  | `boolean`                 | `true`  | Whether to display the currency symbol (e.g., "SOL").                        |
+| `symbol`      | `string`                  | `"SOL"` | The currency symbol to display.                                             |
+| `decimals`    | `number`                  | `9`     | Number of decimal places for the balance (default: 9 for Solana).           |
+| `className`   | `string`                  | -       | Additional CSS classes.                                                    |
+
+Inherits all props from `div`.
+
+#### Behavior
+
+- **No Wallet**: Displays a loading skeleton
+- **With Wallet**: Shows the formatted balance with the currency symbol
+- **Custom Formatting**: Use the `format` prop to customize how the balance is displayed
+
+## Examples
+
+### Basic Usage
+
+```tsx
+import { WalletBalance } from "@/components/wallet/balance";
+
+export default function BalanceDisplay() {
+  return (
+    <div className="flex items-center gap-2">
+      <WalletBalance />
+    </div>
+  );
+}
+```
+
+### Custom Formatting
+
+```tsx
+import { WalletBalance } from "@/components/wallet/balance";
+
+export default function CustomBalance() {
+  return (
+    <WalletBalance
+      format={(balance) => {
+        const sol = Number(balance) / 1e9;
+        return sol.toLocaleString("en-US", {
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        });
+      }}
+    />
+  );
+}
+```
+
+### Without Symbol
+
+```tsx
+import { WalletBalance } from "@/components/wallet/balance";
+
+export default function BalanceNoSymbol() {
+  return <WalletBalance showSymbol={false} />;
+}
+```
+
+<Callout>
+- The component automatically handles loading states with a skeleton
+- Default formatting uses 4 decimal places for readability
+- The balance is stored as `bigint` to handle large numbers accurately
+- Custom formatters should handle the conversion from `bigint` to a displayable string
+- Currently displays a placeholder balance; implement blockchain-specific balance fetching in your application
+</Callout>
+

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "wallet-list-demo",
+  "type": "registry:block",
+  "description": "List of available wallets with connect and disconnect actions",
+  "dependencies": [],
+  "registryDependencies": [
+    "@wallet-kit/provider",
+    "@wallet-kit/list",
+    "@wallet-kit/solana",
+    "@wallet-kit/use-wallet"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/examples/wallet-list-demo.tsx",
+      "content": "\"use client\";\n\nimport { useWallet } from \"@/registry/default/hooks/use-wallet\";\nimport { WalletList } from \"@/registry/default/ui/wallet/list\";\n\nexport default function WalletListDemo() {\n  const { wallets } = useWallet();\n  return <WalletList wallets={wallets} />;\n}\n",
+      "type": "registry:block",
+      "target": "components/wallet/particles/wallet-list-demo.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}

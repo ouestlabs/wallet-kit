@@ -1,0 +1,21 @@
+{
+  "$schema": "https://ui.shadcn.com/schema/registry-item.json",
+  "name": "wallet-error-demo",
+  "type": "registry:block",
+  "description": "Wallet error dialog for displaying connection errors",
+  "dependencies": [],
+  "registryDependencies": [
+    "@wallet-kit/error"
+  ],
+  "files": [
+    {
+      "path": "src/registry/default/examples/wallet-error-demo.tsx",
+      "content": "\"use client\";\n\nimport { useState } from \"react\";\nimport { Button } from \"@/registry/default/ui/button\";\nimport {\n  NO_ERROR,\n  WalletErrorDialog,\n} from \"@/registry/default/ui/wallet/error\";\n\nexport default function WalletErrorDemo() {\n  const [error, setError] = useState<symbol>(NO_ERROR);\n\n  return (\n    <div className=\"flex items-center justify-center\">\n      <Button\n        onClick={() => setError(Symbol(\"Demo Error\"))}\n        variant=\"destructive\"\n      >\n        Trigger Error\n      </Button>\n      {error !== NO_ERROR && (\n        <WalletErrorDialog\n          error={new Error(\"This is a demo error message\")}\n          onClose={() => setError(NO_ERROR)}\n        />\n      )}\n    </div>\n  );\n}\n",
+      "type": "registry:block",
+      "target": "components/wallet/particles/wallet-error-demo.tsx"
+    }
+  ],
+  "categories": [
+    "wallet"
+  ]
+}
