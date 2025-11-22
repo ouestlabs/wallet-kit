@@ -10,9 +10,6 @@ const nextConfig: NextConfig = {
       fullUrl: true,
     },
   },
-  experimental: {
-    turbopackFileSystemCacheForDev: true,
-  },
   serverExternalPackages: ["ts-morph", "shiki"],
   images: {
     remotePatterns: [
