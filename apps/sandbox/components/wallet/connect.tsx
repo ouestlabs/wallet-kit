@@ -8,16 +8,8 @@ import {
 } from "lucide-react";
 import type React from "react";
 import { useEffect, useState } from "react";
-import {
-  useWallet,
-  useWalletAccount,
-} from "@/hooks/use-wallet";
-import { ellipsify } from "@/lib/ellipsify";
 import { Button } from "@/components/ui/button";
-import {
-  ButtonGroup,
-  ButtonGroupText,
-} from "@/components/ui/button-group";
+import { ButtonGroup, ButtonGroupText } from "@/components/ui/button-group";
 import {
   Dialog,
   DialogContent,
@@ -34,13 +26,12 @@ import {
   ItemMedia,
   ItemTitle,
 } from "@/components/ui/item";
-import {
-  NO_ERROR,
-  WalletErrorDialog,
-} from "@/components/wallet/error";
+import { NO_ERROR, WalletErrorDialog } from "@/components/wallet/error";
 import { WalletIcon } from "@/components/wallet/icon";
 import { WalletList } from "@/components/wallet/list";
 import { WalletOnboarding } from "@/components/wallet/onboarding";
+import { useWallet, useWalletAccount } from "@/hooks/use-wallet";
+import { ellipsify } from "@/lib/ellipsify";
 
 function ConnectWallet({
   className,

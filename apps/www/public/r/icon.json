@@ -2,13 +2,8 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "icon",
   "type": "registry:component",
-  "dependencies": [
-    "@wallet-standard/react",
-    "class-variance-authority"
-  ],
-  "registryDependencies": [
-    "@shadcn/avatar"
-  ],
+  "dependencies": ["@wallet-standard/react", "class-variance-authority"],
+  "registryDependencies": ["@shadcn/avatar"],
   "files": [
     {
       "path": "src/registry/default/ui/wallet/icon.tsx",
@@ -17,7 +12,5 @@
       "target": "components/wallet/icon.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

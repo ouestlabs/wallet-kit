@@ -16,7 +16,5 @@
       "target": "components/wallet/network.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

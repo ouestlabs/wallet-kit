@@ -2,9 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "connect",
   "type": "registry:component",
-  "dependencies": [
-    "lucide-react"
-  ],
+  "dependencies": ["lucide-react"],
   "registryDependencies": [
     "@shadcn/button",
     "@shadcn/dialog",
@@ -25,7 +23,5 @@
       "target": "components/wallet/connect.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

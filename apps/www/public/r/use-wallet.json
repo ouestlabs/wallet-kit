@@ -2,9 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "use-wallet",
   "type": "registry:hook",
-  "dependencies": [
-    "@wallet-standard/react"
-  ],
+  "dependencies": ["@wallet-standard/react"],
   "registryDependencies": [
     "@wallet-kit/context",
     "@wallet-kit/network",

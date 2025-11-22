@@ -2,10 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "storage",
   "type": "registry:lib",
-  "dependencies": [
-    "@nanostores/react",
-    "nanostores"
-  ],
+  "dependencies": ["@nanostores/react", "nanostores"],
   "files": [
     {
       "path": "src/registry/default/lib/chains/storage.ts",

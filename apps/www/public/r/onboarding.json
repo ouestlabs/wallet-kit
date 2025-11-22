@@ -2,12 +2,8 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "onboarding",
   "type": "registry:component",
-  "dependencies": [
-    "motion"
-  ],
-  "registryDependencies": [
-    "@shadcn/button"
-  ],
+  "dependencies": ["motion"],
+  "registryDependencies": ["@shadcn/button"],
   "files": [
     {
       "path": "src/registry/default/ui/wallet/onboarding.tsx",
@@ -16,7 +12,5 @@
       "target": "components/wallet/onboarding.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

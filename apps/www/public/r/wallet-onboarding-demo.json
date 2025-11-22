@@ -4,9 +4,7 @@
   "type": "registry:block",
   "description": "Interactive wallet onboarding flow with step-by-step guide",
   "dependencies": [],
-  "registryDependencies": [
-    "@wallet-kit/onboarding"
-  ],
+  "registryDependencies": ["@wallet-kit/onboarding"],
   "files": [
     {
       "path": "src/registry/default/examples/wallet-onboarding-demo.tsx",
@@ -15,7 +13,5 @@
       "target": "components/wallet/particles/wallet-onboarding-demo.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }
