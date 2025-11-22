@@ -6,9 +6,9 @@ export default function OpenGraphImage() {
   const fontSans = readFileSync("src/lib/fonts/bricolage-grotesque.ttf");
 
   return generateOGImage({
-    primaryTextColor: "rgb(240,240,240)",
     title: "wallet/kit",
-    description: "A set of accessible and composable Wallet Kit components.",
+    description:
+      "A set of accessible and composable Wallet UI components. Built on top of shadcn/ui, it's designed for you to copy, paste, and own.",
     fonts: [
       {
         name: "Instrument Serif",

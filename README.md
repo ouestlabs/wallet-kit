@@ -2,6 +2,8 @@
 
 A set of accessible and composable Wallet Kit components. Built on top of [shadcn/ui](https://ui.shadcn.com/), it's designed for you to copy, paste, and own.
 
+![wallet/kit](/apps/www/public/banner.png)
+
 ## Contributing
 
 We're always looking for contributors to help improve our UI components. Whether it's a bug report, a new feature, or a documentation update, we appreciate your help.

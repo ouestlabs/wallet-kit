@@ -7,7 +7,7 @@ export const baseUrl =
 export const appConfig = Object.freeze({
   name: "wallet/kit",
   url: baseUrl.origin,
-  ogImage: `${baseUrl.origin}/opengraph-image.png`,
+  ogImage: `${baseUrl.origin}/opengraph-image`,
   description:
     "A set of accessible and composable Wallet Kit components. Built on top of shadcn/ui, it's designed for you to copy, paste, and own.",
   links: Object.freeze({
