@@ -80,7 +80,7 @@ export default async function Page(props: {
               </div>
             </div>
             {page.data.lastModified && (
-              <p className="text-muted-foreground text-sm">
+              <p className="pt-5 text-muted-foreground text-sm">
                 Last updated{" "}
                 {new Date(page.data.lastModified).toLocaleDateString()}
               </p>

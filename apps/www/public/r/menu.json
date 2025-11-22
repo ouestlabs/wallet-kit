@@ -2,10 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "menu",
   "type": "registry:component",
-  "dependencies": [
-    "lucide-react",
-    "sonner"
-  ],
+  "dependencies": ["lucide-react", "sonner"],
   "registryDependencies": [
     "@shadcn/button",
     "@shadcn/dropdown-menu",
@@ -23,7 +20,5 @@
       "target": "components/wallet/menu.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

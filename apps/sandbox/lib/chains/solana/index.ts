@@ -1,8 +1,5 @@
 import { type ClusterUrl, LAMPORTS_PER_SOL } from "gill";
-import {
-  defineNetwork,
-  type Network,
-} from "@/lib/chains/network";
+import { defineNetwork, type Network } from "@/lib/chains/network";
 
 type SolanaNetworkId = `solana:${string}`;
 

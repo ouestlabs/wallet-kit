@@ -18,7 +18,5 @@
       "target": "components/wallet/particles/solana-client-demo.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

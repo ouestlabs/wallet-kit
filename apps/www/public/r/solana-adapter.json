@@ -2,12 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "solana-adapter",
   "type": "registry:lib",
-  "dependencies": [
-    "gill",
-    "react",
-    "@gillsdk/react",
-    "@tanstack/react-query"
-  ],
+  "dependencies": ["gill", "react", "@gillsdk/react", "@tanstack/react-query"],
   "registryDependencies": [
     "@wallet-kit/context",
     "@wallet-kit/network",

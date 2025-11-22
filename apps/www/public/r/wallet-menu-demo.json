@@ -17,7 +17,5 @@
       "target": "components/wallet/particles/wallet-menu-demo.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

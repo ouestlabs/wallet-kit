@@ -5,12 +5,6 @@ import { CopyIcon, LogOutIcon } from "lucide-react";
 import type React from "react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import {
-  useWallet,
-  useWalletAccount,
-  useWalletConnection,
-} from "@/hooks/use-wallet";
-import { ellipsify } from "@/lib/ellipsify";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -21,11 +15,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ConnectWallet } from "@/components/wallet/connect";
-import {
-  NO_ERROR,
-  WalletErrorDialog,
-} from "@/components/wallet/error";
+import { NO_ERROR, WalletErrorDialog } from "@/components/wallet/error";
 import { WalletIcon } from "@/components/wallet/icon";
+import {
+  useWallet,
+  useWalletAccount,
+  useWalletConnection,
+} from "@/hooks/use-wallet";
+import { ellipsify } from "@/lib/ellipsify";
 
 function WalletMenuContent({
   account,

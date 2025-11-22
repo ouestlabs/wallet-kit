@@ -1,16 +1,13 @@
 import type { UiWallet, UiWalletAccount } from "@wallet-standard/react";
 import { CircleAlertIcon, ExternalLink } from "lucide-react";
 import type React from "react";
-import {
-  useWalletAccount,
-  useWalletConnection,
-} from "@/hooks/use-wallet";
-import { cn } from "@/lib/utils";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { WalletIcon } from "@/components/wallet/icon";
+import { useWalletAccount, useWalletConnection } from "@/hooks/use-wallet";
+import { cn } from "@/lib/utils";
 
 function NoWalletDetected({ className }: { className?: string }) {
   return (

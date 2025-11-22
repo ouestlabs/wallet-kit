@@ -17,7 +17,5 @@
       "target": "components/wallet/particles/connect-wallet-prompt-demo.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

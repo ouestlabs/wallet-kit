@@ -3,10 +3,7 @@
   "name": "balance",
   "type": "registry:component",
   "dependencies": [],
-  "registryDependencies": [
-    "@shadcn/skeleton",
-    "@wallet-kit/use-wallet"
-  ],
+  "registryDependencies": ["@shadcn/skeleton", "@wallet-kit/use-wallet"],
   "files": [
     {
       "path": "src/registry/default/ui/wallet/balance.tsx",
@@ -15,7 +12,5 @@
       "target": "components/wallet/balance.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

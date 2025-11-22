@@ -17,9 +17,9 @@ export async function GET(
   const fontSans = readFileSync("src/lib/fonts/bricolage-grotesque.ttf");
 
   return generateOGImage({
-    primaryTextColor: "rgb(240,240,240)",
     title: page.data.title,
     description: page.data.description,
+    variant: "docs",
     fonts: [
       {
         name: "Instrument Serif",

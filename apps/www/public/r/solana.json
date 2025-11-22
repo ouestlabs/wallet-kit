@@ -2,12 +2,8 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "solana",
   "type": "registry:lib",
-  "dependencies": [
-    "gill"
-  ],
-  "registryDependencies": [
-    "@wallet-kit/network"
-  ],
+  "dependencies": ["gill"],
+  "registryDependencies": ["@wallet-kit/network"],
   "files": [
     {
       "path": "src/registry/default/lib/chains/solana/index.ts",

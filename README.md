@@ -2,7 +2,7 @@
 
 A set of accessible and composable Wallet Kit components. Built on top of [shadcn/ui](https://ui.shadcn.com/), it's designed for you to copy, paste, and own.
 
-![wallet/kit](/apps/www/src/app/opengraph-image.png)
+![wallet/kit](/apps/www/public/banner.png)
 
 ## Contributing
 

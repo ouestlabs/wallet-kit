@@ -17,7 +17,5 @@
       "target": "components/wallet/particles/network-select-demo.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

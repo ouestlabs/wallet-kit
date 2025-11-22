@@ -2,10 +2,7 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "provider",
   "type": "registry:component",
-  "dependencies": [
-    "@wallet-standard/react",
-    "@nanostores/react"
-  ],
+  "dependencies": ["@wallet-standard/react", "@nanostores/react"],
   "registryDependencies": [
     "@wallet-kit/context",
     "@wallet-kit/network",
@@ -20,7 +17,5 @@
       "target": "components/wallet/provider.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

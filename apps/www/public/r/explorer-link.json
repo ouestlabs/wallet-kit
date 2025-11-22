@@ -2,13 +2,8 @@
   "$schema": "https://ui.shadcn.com/schema/registry-item.json",
   "name": "explorer-link",
   "type": "registry:component",
-  "dependencies": [
-    "lucide-react"
-  ],
-  "registryDependencies": [
-    "@shadcn/button",
-    "@wallet-kit/use-wallet"
-  ],
+  "dependencies": ["lucide-react"],
+  "registryDependencies": ["@shadcn/button", "@wallet-kit/use-wallet"],
   "files": [
     {
       "path": "src/registry/default/ui/wallet/explorer-link.tsx",
@@ -17,7 +12,5 @@
       "target": "components/wallet/explorer-link.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

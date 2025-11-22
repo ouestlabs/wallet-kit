@@ -4,9 +4,7 @@
   "type": "registry:block",
   "description": "Wallet error dialog for displaying connection errors",
   "dependencies": [],
-  "registryDependencies": [
-    "@wallet-kit/error"
-  ],
+  "registryDependencies": ["@wallet-kit/error"],
   "files": [
     {
       "path": "src/registry/default/examples/wallet-error-demo.tsx",
@@ -15,7 +13,5 @@
       "target": "components/wallet/particles/wallet-error-demo.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

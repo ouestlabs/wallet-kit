@@ -18,7 +18,5 @@
       "target": "components/wallet/particles/wallet-balance-demo.tsx"
     }
   ],
-  "categories": [
-    "wallet"
-  ]
+  "categories": ["wallet"]
 }

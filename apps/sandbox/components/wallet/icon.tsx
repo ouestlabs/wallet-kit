@@ -1,9 +1,5 @@
 import type { UiWallet } from "@wallet-standard/react";
-import {
-  Avatar,
-  AvatarFallback,
-  AvatarImage,
-} from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface WalletIconProps extends React.ComponentProps<typeof Avatar> {
   wallet?: Pick<UiWallet, "icon" | "name">;
