@@ -11,14 +11,6 @@ const nextConfig: NextConfig = {
     },
   },
   serverExternalPackages: ["ts-morph", "shiki"],
-  images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "avatar.vercel.sh",
-      },
-    ],
-  },
   async redirects() {
     return [
       {
