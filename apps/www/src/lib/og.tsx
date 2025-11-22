@@ -114,7 +114,11 @@ export function generate({
             }}
           >
             <div style={{ display: "flex" }}>
-              <Icons.walletKit height="100" width="100" />
+              <Icons.walletKit
+                color="rgb(100, 181, 246)"
+                height="100"
+                width="100"
+              />
             </div>
             <p
               style={{
@@ -265,7 +269,11 @@ export function generate({
               gap: "24px",
             }}
           >
-            <Icons.walletKit height="64" width="64" />
+            <Icons.walletKit
+              color="rgb(100, 181, 246)"
+              height="64"
+              width="64"
+            />
             <p
               style={{
                 fontSize: "46px",
