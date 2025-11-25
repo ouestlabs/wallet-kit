@@ -27,7 +27,29 @@ The `WalletProvider` abstracts the complexity of connecting to different chains,
 
 Our components are built with [Tailwind CSS v4](https://tailwindcss.com). Before you begin, make sure you have a React project set up with Tailwind CSS.
 
+If you haven't set up shadcn/ui yet, follow the [shadcn/ui installation guide](https://ui.shadcn.com/docs/installation) first.
+
 ## Adding Components
+
+### Configure the Registry
+
+First, add the `@wallet-kit` registry namespace to your `components.json` file. This is required for shadcn/ui to recognize wallet/kit components.
+
+<Callout>
+**Note**: If you're new to shadcn/ui registries, see the [shadcn/ui registry documentation](https://ui.shadcn.com/docs/registry) for more information.
+</Callout>
+
+```json title="components.json"
+{
+  "registries": {
+    "@wallet-kit": "https://wallet-kit.ouestlabs.xyz/r/{name}.json"
+  }
+}
+```
+
+The `@wallet-kit` registry namespace allows you to install components using the `@wallet-kit/` prefix in shadcn CLI commands.
+
+### Install Components
 
 You can add components **automatically with the shadcn CLI** or **manually by copying the files**.
 
@@ -37,6 +59,8 @@ You can add components **automatically with the shadcn CLI** or **manually by co
     <TabsTrigger value="manual">Manual</TabsTrigger>
   </TabsList>
   <TabsContent value="cli">
+    Install components using the `@wallet-kit` registry namespace:
+
     ```bash
     npx shadcn@latest add @wallet-kit/provider @wallet-kit/connect
     ```
@@ -59,7 +83,7 @@ You can add components **automatically with the shadcn CLI** or **manually by co
       npx shadcn@latest add button dialog dropdown-menu alert avatar badge
       ```
 
-      <Step>Install the wallet components from this registry:</Step>
+      <Step>Install the wallet components from the `@wallet-kit` registry namespace:</Step>
 
       ```bash
       npx shadcn@latest add @wallet-kit/provider @wallet-kit/connect

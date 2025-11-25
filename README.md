@@ -41,6 +41,8 @@ bun run lint:fix
 - [Next.JS](https://nextjs.org/)
 - [shadcn/ui](https://ui.shadcn.com/docs/registry)
 - [Fumadocs](https://fumadocs.dev/)
+- [Wallet Standard](https://wallet-standard.github.io/wallet-standard/)
+- [Gill SDK](https://www.gillsdk.com/)
 
 ### shadcn/ui Registry
 
